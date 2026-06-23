@@ -4,18 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Барабаны сепараторов</title>
-    <!-- ПОДКЛЮЧАЕМ ВНЕШНИЙ CSS -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
+        body { background: #e9f0f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 1300px; width: 100%; background: white; border-radius: 28px; padding: 20px 24px 32px 24px; }
+        h1 { font-size: 1.8rem; margin: 0 0 6px 0; color: #1e466e; }
+        .sub { color: #2c5a8c; border-left: 4px solid #2c7da0; padding-left: 16px; margin: 12px 0 20px 0; }
+        .status-bar { background: #e8f4f8; border-radius: 20px; padding: 10px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
+        .status-ok { color: #155724; background: #d4edda; padding: 4px 12px; border-radius: 40px; }
+        .status-warning { color: #856404; background: #fff3cd; padding: 4px 12px; border-radius: 40px; }
+        .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stat-card { background: #f0f6fe; border-radius: 20px; padding: 8px 20px; display: inline-flex; align-items: baseline; gap: 12px; }
+        .stat-card span:first-child { font-weight: 600; color: #1a5d8c; }
+        .stat-card span:last-child { font-size: 1.6rem; font-weight: 700; color: #004070; }
+        .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between; }
+        .btn { padding: 8px 18px; font-weight: bold; border-radius: 40px; cursor: pointer; border: none; font-size: 0.8rem; }
+        .btn-add { background: #d4edda; color: #155724; }
+        .btn-remove { background: #f8d7da; color: #721c24; }
+        .btn-excel { background: #1e6f5c; color: white; }
+        .btn-excel:hover { background: #155a4a; }
+        .btn-save { background: #17a2b8; color: white; }
+        .btn-save:hover { background: #138496; }
+        .replace-btn { background: #d9eafb; color: #0056a7; padding: 5px 12px; border-radius: 40px; cursor: pointer; border: 1px solid #b9cfec; margin: 0 4px; font-size: 0.75rem; }
+        .replace-btn:hover { background: #b9cfec; }
+        .grid-2col { display: flex; gap: 28px; flex-wrap: wrap; }
+        .card { background: #f8fafd; border-radius: 24px; padding: 16px 20px; border: 1px solid #e2edf7; flex: 1; min-width: 380px; }
+        .card h2 { font-size: 1.3rem; margin-top: 0; margin-bottom: 16px; color: #0f3b5c; border-bottom: 2px solid #cbdde9; padding-bottom: 10px; }
+        .table-wrapper { max-height: 500px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #dde6ef; }
+        th { background-color: #eef3fc; position: sticky; top: 0; }
+        .badge-drum { font-family: monospace; background: #eef2fa; padding: 4px 10px; border-radius: 40px; display: inline-block; }
+        .stock-list { max-height: 250px; overflow-y: auto; background: white; border-radius: 20px; padding: 6px 12px; border: 1px solid #dce5ef; }
+        .stock-item { font-family: monospace; padding: 8px; border-bottom: 1px solid #e9edf2; }
+        .history-item { padding: 10px 8px; border-bottom: 1px solid #e9edf2; display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; }
+        .history-item:first-child { background: #fff9e0; border-left: 3px solid #ffc107; }
+        .history-date { color: #2c7da0; min-width: 150px; }
+        footer { margin-top: 32px; font-size: 0.7rem; text-align: center; color: #6f8eae; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        .modal-box { background:white; border-radius:28px; padding:24px; width:340px; }
+        .modal-box select { width:100%; padding:8px; margin:12px 0; border-radius:40px; }
+        .modal-box button { padding:8px 16px; border:none; border-radius:40px; cursor:pointer; }
+        .modal-box .btn-confirm { background:#1e6f5c; color:white; }
+        .modal-box .btn-cancel { background:#eee; }
+        .modal-box .btn-row { display:flex; gap:12px; justify-content:flex-end; }
+    </style>
 </head>
 <body>
 <div class="container">
     <h1>🥁 Барабаны сепараторов</h1>
-    <div class="sub">Автоматическая загрузка данных</div>
+    <div class="sub">Автоматическая загрузка из data.json</div>
     
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
-        <span id="statusText" class="status-ok">✅ Данные загружены</span>
-        <button id="saveExcelBtn" class="btn btn-excel">💾 Сохранить в Excel</button>
+        <span id="statusText" class="status-warning">Загрузка...</span>
+        <button id="saveToGitBtn" class="btn btn-save">💾 Сохранить на GitHub</button>
+        <button id="saveExcelBtn" class="btn btn-excel">📥 Скачать Excel</button>
     </div>
     
     <div class="stats" id="statsPanel">
@@ -51,35 +95,16 @@
             </div>
         </div>
     </div>
-    <footer>📌 Данные автоматически сохраняются в браузере. При следующем открытии всё загрузится само.</footer>
+    <footer>📌 Данные хранятся в файле data.json на GitHub. Все изменения синхронизируются!</footer>
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script>
-    const STORAGE_KEY = 'barabany_data_backup';
-    
-    // ===== ВАШИ РЕАЛЬНЫЕ ДАННЫЕ (из Excel) =====
-    const INITIAL_DATA = {
-        separators: [
-            { num: '4', top: '1-1', bottom: '1-11' },
-            { num: '6', top: '1-2', bottom: '2-2' },
-            { num: '8', top: '1-3', bottom: '2-3' },
-            { num: '10', top: '1-4', bottom: '2-4' },
-            { num: '3', top: '1-5', bottom: '2-5' },
-            { num: '5', top: '1-6', bottom: '2-8 к' },
-            { num: '7', top: '1-7', bottom: '' },
-            { num: '9', top: '1-8', bottom: '2-6' }
-        ],
-        allDrums: [
-            '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10', '1-11',
-            '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8 к', '2-7к', '2-6к',
-            '3-1', '3-2', '3-3', '3-4'
-        ],
-        history: [
-            { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
-            { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
-        ]
-    };
+    // ===== КОНФИГУРАЦИЯ =====
+    const REPO_OWNER = 'DmitryErosh';
+    const REPO_NAME = 'DmitryEro';
+    const FILE_PATH = 'data.json';
+    const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
     
     let currentData = {
         separators: [],
@@ -87,7 +112,109 @@
         history: []
     };
     let currentFileName = "барабаны.xlsx";
+    let fileSha = null; // Для обновления файла на GitHub
     
+    // ===== ЗАГРУЗКА ДАННЫХ ИЗ GITHUB =====
+    async function loadFromGitHub() {
+        try {
+            document.getElementById('statusText').textContent = '⏳ Загрузка с GitHub...';
+            document.getElementById('statusText').className = 'status-warning';
+            
+            const response = await fetch(GITHUB_API_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            fileSha = data.sha; // Сохраняем SHA для обновления
+            
+            // Декодируем содержимое (base64 → JSON)
+            const content = atob(data.content);
+            const jsonData = JSON.parse(content);
+            
+            currentData.separators = jsonData.separators || [];
+            currentData.allDrums = jsonData.allDrums || [];
+            currentData.history = jsonData.history || [];
+            
+            renderAll();
+            document.getElementById('statusText').textContent = `✅ Загружено с GitHub: ${currentData.separators.length} сеп`;
+            document.getElementById('statusText').className = 'status-ok';
+            
+            // Сохраняем в localStorage как резервную копию
+            saveBackupToLocal();
+            
+        } catch (error) {
+            console.error('Ошибка загрузки с GitHub:', error);
+            // Пробуем загрузить из localStorage
+            const hasBackup = loadBackupFromLocal();
+            if (!hasBackup) {
+                document.getElementById('statusText').textContent = '❌ Ошибка загрузки. Проверьте data.json';
+                document.getElementById('statusText').className = 'status-warning';
+            }
+        }
+    }
+    
+    // ===== СОХРАНЕНИЕ НА GITHUB =====
+    async function saveToGitHub() {
+        if (!currentData.separators.length) {
+            alert('Нет данных для сохранения!');
+            return;
+        }
+        
+        // Проверяем, есть ли SHA (файл должен существовать)
+        if (!fileSha) {
+            alert('Сначала загрузите данные с GitHub!');
+            return;
+        }
+        
+        const jsonData = {
+            separators: currentData.separators,
+            allDrums: currentData.allDrums,
+            history: currentData.history,
+            lastUpdated: new Date().toISOString()
+        };
+        
+        const content = btoa(JSON.stringify(jsonData, null, 2));
+        
+        const payload = {
+            message: `Обновление данных: ${new Date().toLocaleString()}`,
+            content: content,
+            sha: fileSha
+        };
+        
+        try {
+            document.getElementById('statusText').textContent = '⏳ Сохранение на GitHub...';
+            document.getElementById('statusText').className = 'status-warning';
+            
+            const response = await fetch(GITHUB_API_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            fileSha = result.content.sha;
+            
+            document.getElementById('statusText').textContent = '✅ Сохранено на GitHub!';
+            document.getElementById('statusText').className = 'status-ok';
+            alert('✅ Данные сохранены на GitHub! Теперь они доступны с любого устройства.');
+            
+        } catch (error) {
+            console.error('Ошибка сохранения:', error);
+            alert(`❌ Ошибка сохранения: ${error.message}`);
+            document.getElementById('statusText').textContent = '❌ Ошибка сохранения';
+            document.getElementById('statusText').className = 'status-warning';
+        }
+    }
+    
+    // ===== ФУНКЦИИ РАБОТЫ С ДАННЫМИ =====
     function getCurrentDateTime() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
@@ -147,17 +274,17 @@
         if (available.length === 0) { alert('Нет свободных барабанов!'); return; }
         
         const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;';
+        modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div style="background:white; border-radius:28px; padding:24px; width:340px;">
+            <div class="modal-box">
                 <h3>Замена барабана</h3>
                 <p><strong>Сепаратор ${separatorNum}</strong><br>${position === 'top' ? 'Верхний' : 'Нижний'}: ${currentDrum || 'не установлен'}</p>
-                <select id="newDrumSelect" style="width:100%; padding:8px; margin:12px 0; border-radius:40px;">
+                <select id="newDrumSelect">
                     ${available.map(d => `<option value="${d}">${d}</option>`).join('')}
                 </select>
-                <div style="display:flex; gap:12px; justify-content:flex-end;">
-                    <button id="cancelBtn" style="padding:8px 16px; border:none; background:#eee; border-radius:40px; cursor:pointer;">Отмена</button>
-                    <button id="confirmBtn" style="padding:8px 16px; border:none; background:#1e6f5c; color:white; border-radius:40px; cursor:pointer;">Подтвердить</button>
+                <div class="btn-row">
+                    <button id="cancelBtn" class="btn-cancel">Отмена</button>
+                    <button id="confirmBtn" class="btn-confirm">Подтвердить</button>
                 </div>
             </div>
         `;
@@ -174,7 +301,7 @@
                     currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
                     if (currentData.history.length > 30) currentData.history.pop();
                     renderAll();
-                    alert('✅ Замена выполнена!');
+                    alert('✅ Замена выполнена! Не забудьте нажать "Сохранить на GitHub"');
                 }
             }
             close();
@@ -189,7 +316,7 @@
         currentData.allDrums.push(name.trim());
         currentData.allDrums.sort();
         renderAll();
-        alert('✅ Барабан добавлен!');
+        alert('✅ Барабан добавлен! Не забудьте нажать "Сохранить на GitHub"');
     }
     
     function removeDrum() {
@@ -200,7 +327,7 @@
             const idx = currentData.allDrums.indexOf(name.trim());
             if (idx !== -1) currentData.allDrums.splice(idx, 1);
             renderAll();
-            alert('✅ Барабан удалён!');
+            alert('✅ Барабан удалён! Не забудьте нажать "Сохранить на GitHub"');
         } else if (name) alert('Такого барабана нет в списке свободных');
     }
     
@@ -211,11 +338,11 @@
             history: currentData.history,
             lastSaved: getCurrentDateTime()
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+        localStorage.setItem('barabany_data_backup', JSON.stringify(backup));
     }
     
     function loadBackupFromLocal() {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem('barabany_data_backup');
         if (saved) {
             try {
                 const backup = JSON.parse(saved);
@@ -224,8 +351,8 @@
                     currentData.allDrums = backup.allDrums || [];
                     currentData.history = backup.history || [];
                     renderAll();
-                    document.getElementById('statusText').textContent = '✅ Загружено из кэша';
-                    document.getElementById('statusText').className = 'status-ok';
+                    document.getElementById('statusText').textContent = '⚠️ Загружено из кэша (локально)';
+                    document.getElementById('statusText').className = 'status-warning';
                     return true;
                 }
             } catch(e) {}
@@ -233,15 +360,7 @@
         return false;
     }
     
-    function loadInitialData() {
-        currentData.separators = JSON.parse(JSON.stringify(INITIAL_DATA.separators));
-        currentData.allDrums = JSON.parse(JSON.stringify(INITIAL_DATA.allDrums));
-        currentData.history = JSON.parse(JSON.stringify(INITIAL_DATA.history));
-        renderAll();
-        document.getElementById('statusText').textContent = '✅ Данные загружены';
-        document.getElementById('statusText').className = 'status-ok';
-    }
-    
+    // ===== СОХРАНЕНИЕ В EXCEL =====
     function saveToExcel() {
         if (!currentData.separators.length) {
             alert('Нет данных для сохранения!');
@@ -266,21 +385,13 @@
         }
         
         const wb = XLSX.utils.book_new();
-        const wsSeparators = XLSX.utils.aoa_to_sheet(separatorsData);
-        const wsDrums = XLSX.utils.aoa_to_sheet(drumsData);
-        const wsHistory = XLSX.utils.aoa_to_sheet(historyData);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(separatorsData), "Сепараторы");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(drumsData), "Барабаны");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(historyData), "История");
         
-        XLSX.utils.book_append_sheet(wb, wsSeparators, "Сепараторы");
-        XLSX.utils.book_append_sheet(wb, wsDrums, "Барабаны");
-        XLSX.utils.book_append_sheet(wb, wsHistory, "История");
-        
-        let fileName = prompt("Введите имя файла для сохранения:", currentFileName);
+        let fileName = prompt("Введите имя файла:", currentFileName);
         if (fileName) {
-            fileName = fileName.trim();
-            if (fileName.toLowerCase().endsWith('.xlsx')) {
-                fileName = fileName.slice(0, -5);
-            }
-            fileName = fileName + '.xlsx';
+            if (!fileName.toLowerCase().endsWith('.xlsx')) fileName += '.xlsx';
             XLSX.writeFile(wb, fileName);
             currentFileName = fileName;
             alert(`✅ Сохранено как ${fileName}`);
@@ -288,15 +399,13 @@
     }
     
     // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
+    document.getElementById('saveToGitBtn').onclick = saveToGitHub;
     document.getElementById('saveExcelBtn').onclick = saveToExcel;
     document.getElementById('addDrumBtn').onclick = addNewDrum;
     document.getElementById('removeDrumBtn').onclick = removeDrum;
     
-    // ===== ЗАПУСК ПРИ ЗАГРУЗКЕ =====
-    const hasBackup = loadBackupFromLocal();
-    if (!hasBackup) {
-        loadInitialData();
-    }
+    // ===== ЗАПУСК =====
+    loadFromGitHub();
 </script>
 </body>
 </html>
