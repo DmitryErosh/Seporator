@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Барабаны сепараторов</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
+        body { background: #e9f0f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 1300px; width: 100%; background: white; border-radius: 28px; padding: 20px 24px 32px 24px; }
+        h1 { font-size: 1.8rem; margin: 0 0 6px 0; color: #1e466e; }
+        .sub { color: #2c5a8c; border-left: 4px solid #2c7da0; padding-left: 16px; margin: 12px 0 20px 0; }
+        .status-bar { background: #e8f4f8; border-radius: 20px; padding: 10px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
+        .status-ok { color: #155724; background: #d4edda; padding: 4px 12px; border-radius: 40px; }
+        .status-warning { color: #856404; background: #fff3cd; padding: 4px 12px; border-radius: 40px; }
+        .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stat-card { background: #f0f6fe; border-radius: 20px; padding: 8px 20px; display: inline-flex; align-items: baseline; gap: 12px; }
+        .stat-card span:first-child { font-weight: 600; color: #1a5d8c; }
+        .stat-card span:last-child { font-size: 1.6rem; font-weight: 700; color: #004070; }
+        .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between; }
+        .btn { padding: 8px 18px; font-weight: bold; border-radius: 40px; cursor: pointer; border: none; font-size: 0.8rem; }
+        .btn-add { background: #d4edda; color: #155724; }
+        .btn-remove { background: #f8d7da; color: #721c24; }
+        .btn-excel { background: #1e6f5c; color: white; }
+        .btn-excel:hover { background: #155a4a; }
+        .replace-btn { background: #d9eafb; color: #0056a7; padding: 5px 12px; border-radius: 40px; cursor: pointer; border: 1px solid #b9cfec; margin: 0 4px; font-size: 0.75rem; }
+        .replace-btn:hover { background: #b9cfec; }
+        .grid-2col { display: flex; gap: 28px; flex-wrap: wrap; }
+        .card { background: #f8fafd; border-radius: 24px; padding: 16px 20px; border: 1px solid #e2edf7; flex: 1; min-width: 380px; }
+        .card h2 { font-size: 1.3rem; margin-top: 0; margin-bottom: 16px; color: #0f3b5c; border-bottom: 2px solid #cbdde9; padding-bottom: 10px; }
+        .table-wrapper { max-height: 500px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #dde6ef; }
+        th { background-color: #eef3fc; position: sticky; top: 0; }
+        .badge-drum { font-family: monospace; background: #eef2fa; padding: 4px 10px; border-radius: 40px; display: inline-block; }
+        .stock-list { max-height: 250px; overflow-y: auto; background: white; border-radius: 20px; padding: 6px 12px; border: 1px solid #dce5ef; }
+        .stock-item { font-family: monospace; padding: 8px; border-bottom: 1px solid #e9edf2; }
+        .history-item { padding: 10px 8px; border-bottom: 1px solid #e9edf2; display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; }
+        .history-item:first-child { background: #fff9e0; border-left: 3px solid #ffc107; }
+        .history-date { color: #2c7da0; min-width: 150px; }
+        .file-input { display: none; }
+        footer { margin-top: 32px; font-size: 0.7rem; text-align: center; color: #6f8eae; }
+        .loading { text-align: center; padding: 40px; color: #6f8eae; }
+        .btn-reset { background: #f8d7da; color: #721c24; }
+        .btn-reset:hover { background: #f5c6cb; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🥁 Барабаны сепараторов</h1>
+    <div class="sub">Автоматическая загрузка данных</div>
+    
+    <div class="status-bar" id="statusBar">
+        <span>📊 Статус:</span>
+        <span id="statusText" class="status-ok">✅ Данные загружены</span>
+        <button id="saveExcelBtn" class="btn-excel">💾 Сохранить в Excel</button>
+        <button id="resetDataBtn" class="btn btn-reset">🔄 Сбросить к исходным</button>
+    </div>
+    
+    <div class="stats" id="statsPanel">
+        <div class="stat-card"><span>Сепараторов:</span><span id="statSeparators">0</span></div>
+        <div class="stat-card"><span>Барабанов:</span><span id="statDrums">0</span></div>
+        <div class="stat-card"><span>Установлено:</span><span id="statUsed">0</span></div>
+    </div>
+    
+    <div class="toolbar">
+        <div>
+            <button id="addDrumBtn" class="btn btn-add">➕ Добавить барабан</button>
+            <button id="removeDrumBtn" class="btn btn-remove">➖ Удалить барабан</button>
+        </div>
+    </div>
+
+    <div class="grid-2col">
+        <div class="card">
+            <h2>🏭 Сепараторы</h2>
+            <div class="table-wrapper">
+                <table id="separatorsTable">
+                    <thead><tr><th>№</th><th>Верх</th><th>Низ</th><th></th></tr></thead>
+                    <tbody id="separatorsRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📦 Свободные барабаны</h2>
+            <div id="stockContainer" class="stock-list"></div>
+            <div style="margin-top: 20px;">
+                <h2 style="font-size:1rem;">🕐 История замен</h2>
+                <div id="historyList" style="background:white; border-radius:20px; padding:4px 12px; border:1px solid #dce5ef; max-height: 280px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+    <footer>📌 Данные автоматически сохраняются в браузере. При следующем открытии всё загрузится само.</footer>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script>
+    const STORAGE_KEY = 'barabany_data_backup';
+    
+    // ===== ВАШИ РЕАЛЬНЫЕ ДАННЫЕ (из Excel) =====
+    const INITIAL_DATA = {
+        separators: [
+            { num: '4', top: '1-1', bottom: '1-11' },
+            { num: '6', top: '1-2', bottom: '2-2' },
+            { num: '8', top: '1-3', bottom: '2-3' },
+            { num: '10', top: '1-4', bottom: '2-4' },
+            { num: '3', top: '1-5', bottom: '2-5' },
+            { num: '5', top: '1-6', bottom: '2-8 к' },
+            { num: '7', top: '1-7', bottom: '' },
+            { num: '9', top: '1-8', bottom: '2-6' }
+        ],
+        allDrums: [
+            '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10', '1-11',
+            '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8 к', '2-7к', '2-6к',
+            '3-1', '3-2', '3-3', '3-4'
+        ],
+        history: [
+            { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
+            { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
+        ]
+    };
+    
+    let currentData = {
+        separators: [],
+        allDrums: [],
+        history: []
+    };
+    let currentFileName = "барабаны.xlsx";
+    
+    function getCurrentDateTime() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    }
+    
+    function getAvailableDrums() {
+        const used = new Set();
+        for (let s of currentData.separators) {
+            if (s.top) used.add(s.top);
+            if (s.bottom) used.add(s.bottom);
+        }
+        return currentData.allDrums.filter(d => !used.has(d));
+    }
+    
+    function renderAll() {
+        const usedCount = currentData.separators.reduce((s, sep) => s + (sep.top ? 1 : 0) + (sep.bottom ? 1 : 0), 0);
+        document.getElementById('statSeparators').textContent = currentData.separators.length;
+        document.getElementById('statDrums').textContent = currentData.allDrums.length;
+        document.getElementById('statUsed').textContent = usedCount;
+        
+        const tbody = document.getElementById('separatorsRows');
+        tbody.innerHTML = '';
+        // Сортируем сепараторы по номеру (числовое значение)
+        const sortedSeparators = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
+        for (let sep of sortedSeparators) {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = sep.num;
+            row.insertCell(1).innerHTML = sep.top ? `<span class="badge-drum">${sep.top}</span>` : '<span style="color:#aaa;">—</span>';
+            row.insertCell(2).innerHTML = sep.bottom ? `<span class="badge-drum">${sep.bottom}</span>` : '<span style="color:#aaa;">—</span>';
+            const cell = row.insertCell(3);
+            const topBtn = document.createElement('button');
+            topBtn.textContent = 'Заменить верх';
+            topBtn.className = 'replace-btn';
+            topBtn.onclick = () => showDialog(sep.num, 'top', sep.top || '');
+            const bottomBtn = document.createElement('button');
+            bottomBtn.textContent = 'Заменить низ';
+            bottomBtn.className = 'replace-btn';
+            bottomBtn.style.marginLeft = '8px';
+            bottomBtn.onclick = () => showDialog(sep.num, 'bottom', sep.bottom || '');
+            cell.appendChild(topBtn);
+            cell.appendChild(bottomBtn);
+        }
+        
+        const available = getAvailableDrums();
+        const stockDiv = document.getElementById('stockContainer');
+        if (available.length === 0) stockDiv.innerHTML = '<div class="stock-item">✨ Нет свободных барабанов</div>';
+        else stockDiv.innerHTML = available.map(d => `<div class="stock-item">🥁 ${d}</div>`).join('');
+        
+        const historyDiv = document.getElementById('historyList');
+        if (currentData.history.length === 0) historyDiv.innerHTML = '<div class="history-item">История пуста</div>';
+        else historyDiv.innerHTML = currentData.history.map(h => `<div class="history-item"><span class="history-date">📅 ${h.date}</span><span>🔄 ${h.text}</span></div>`).join('');
+        
+        saveBackupToLocal();
+    }
+    
+    function showDialog(separatorNum, position, currentDrum) {
+        const available = getAvailableDrums();
+        if (available.length === 0) { alert('Нет свободных барабанов!'); return; }
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;';
+        modal.innerHTML = `
+            <div style="background:white; border-radius:28px; padding:24px; width:340px;">
+                <h3>Замена барабана</h3>
+                <p><strong>Сепаратор ${separatorNum}</strong><br>${position === 'top' ? 'Верхний' : 'Нижний'}: ${currentDrum || 'не установлен'}</p>
+                <select id="newDrumSelect" style="width:100%; padding:8px; margin:12px 0; border-radius:40px;">
+                    ${available.map(d => `<option value="${d}">${d}</option>`).join('')}
+                </select>
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button id="cancelBtn" style="padding:8px 16px; border:none; background:#eee; border-radius:40px; cursor:pointer;">Отмена</button>
+                    <button id="confirmBtn" style="padding:8px 16px; border:none; background:#1e6f5c; color:white; border-radius:40px; cursor:pointer;">Подтвердить</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const close = () => modal.remove();
+        modal.querySelector('#confirmBtn').onclick = () => {
+            const newDrum = modal.querySelector('#newDrumSelect').value;
+            if (newDrum) {
+                const idx = currentData.separators.findIndex(s => s.num === separatorNum);
+                if (idx !== -1) {
+                    const oldDrum = position === 'top' ? currentData.separators[idx].top : currentData.separators[idx].bottom;
+                    if (position === 'top') currentData.separators[idx].top = newDrum;
+                    else currentData.separators[idx].bottom = newDrum;
+                    currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
+                    if (currentData.history.length > 30) currentData.history.pop();
+                    renderAll();
+                    alert('✅ Замена выполнена!');
+                }
+            }
+            close();
+        };
+        modal.querySelector('#cancelBtn').onclick = close;
+    }
+    
+    function addNewDrum() {
+        const name = prompt('Введите название нового барабана (например: 1-12)');
+        if (!name || !name.trim()) return;
+        if (currentData.allDrums.includes(name.trim())) { alert('Такой барабан уже есть!'); return; }
+        currentData.allDrums.push(name.trim());
+        currentData.allDrums.sort();
+        renderAll();
+        alert('✅ Барабан добавлен!');
+    }
+    
+    function removeDrum() {
+        const available = getAvailableDrums();
+        if (available.length === 0) { alert('Нет свободных барабанов для удаления!'); return; }
+        const name = prompt('Введите название барабана для удаления:\n' + available.join(', '));
+        if (name && available.includes(name.trim())) {
+            const idx = currentData.allDrums.indexOf(name.trim());
+            if (idx !== -1) currentData.allDrums.splice(idx, 1);
+            renderAll();
+            alert('✅ Барабан удалён!');
+        } else if (name) alert('Такого барабана нет в списке свободных');
+    }
+    
+    function saveBackupToLocal() {
+        const backup = {
+            separators: currentData.separators,
+            allDrums: currentData.allDrums,
+            history: currentData.history,
+            lastSaved: getCurrentDateTime()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+    }
+    
+    function loadBackupFromLocal() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const backup = JSON.parse(saved);
+                if (backup.separators && backup.separators.length) {
+                    currentData.separators = backup.separators;
+                    currentData.allDrums = backup.allDrums || [];
+                    currentData.history = backup.history || [];
+                    renderAll();
+                    document.getElementById('statusText').textContent = '✅ Загружено из кэша';
+                    document.getElementById('statusText').className = 'status-ok';
+                    return true;
+                }
+            } catch(e) {}
+        }
+        return false;
+    }
+    
+    function loadInitialData() {
+        currentData.separators = JSON.parse(JSON.stringify(INITIAL_DATA.separators));
+        currentData.allDrums = JSON.parse(JSON.stringify(INITIAL_DATA.allDrums));
+        currentData.history = JSON.parse(JSON.stringify(INITIAL_DATA.history));
+        renderAll();
+        document.getElementById('statusText').textContent = '✅ Данные загружены';
+        document.getElementById('statusText').className = 'status-ok';
+    }
+    
+    function saveToExcel() {
+        if (!currentData.separators.length) {
+            alert('Нет данных для сохранения!');
+            return;
+        }
+        
+        const separatorsData = [["Сепаратор", "Верх", "Низ"]];
+        const sorted = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
+        for (let s of sorted) {
+            separatorsData.push([s.num, s.top, s.bottom]);
+        }
+        
+        const drumsData = [["Барабаны"]];
+        const sortedDrums = [...currentData.allDrums].sort();
+        for (let d of sortedDrums) {
+            drumsData.push([d]);
+        }
+        
+        const historyData = [["Дата", "Событие"]];
+        for (let h of currentData.history) {
+            historyData.push([h.date, h.text]);
+        }
+        
+        const wb = XLSX.utils.book_new();
+        const wsSeparators = XLSX.utils.aoa_to_sheet(separatorsData);
+        const wsDrums = XLSX.utils.aoa_to_sheet(drumsData);
+        const wsHistory = XLSX.utils.aoa_to_sheet(historyData);
+        
+        XLSX.utils.book_append_sheet(wb, wsSeparators, "Сепараторы");
+        XLSX.utils.book_append_sheet(wb, wsDrums, "Барабаны");
+        XLSX.utils.book_append_sheet(wb, wsHistory, "История");
+        
+        let fileName = prompt("Введите имя файла для сохранения:", currentFileName);
+        if (fileName) {
+            fileName = fileName.trim();
+            if (fileName.toLowerCase().endsWith('.xlsx')) {
+                fileName = fileName.slice(0, -5);
+            }
+            fileName = fileName + '.xlsx';
+            XLSX.writeFile(wb, fileName);
+            currentFileName = fileName;
+            alert(`✅ Сохранено как ${fileName}`);
+        }
+    }
+    
+    function resetData() {
+        if (confirm('⚠️ Вы уверены, что хотите сбросить все данные к исходным?')) {
+            localStorage.removeItem(STORAGE_KEY);
+            loadInitialData();
+            alert('✅ Данные сброшены к исходным!');
+        }
+    }
+    
+    // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
+    document.getElementById('saveExcelBtn').onclick = saveToExcel;
+    document.getElementById('addDrumBtn').onclick = addNewDrum;
+    document.getElementById('removeDrumBtn').onclick = removeDrum;
+    document.getElementById('resetDataBtn').onclick = resetData;
+    
+    // ===== ЗАПУСК ПРИ ЗАГРУЗКЕ =====
+    const hasBackup = loadBackupFromLocal();
+    if (!hasBackup) {
+        loadInitialData();
+    }
+</script>
+</body>
+</html>
