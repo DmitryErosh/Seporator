@@ -12,7 +12,6 @@
         .sub { color: #2c5a8c; border-left: 4px solid #2c7da0; padding-left: 16px; margin: 12px 0 20px 0; }
         .status-bar { background: #e8f4f8; border-radius: 20px; padding: 10px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
         .status-ok { color: #155724; background: #d4edda; padding: 4px 12px; border-radius: 40px; }
-        .status-warning { color: #856404; background: #fff3cd; padding: 4px 12px; border-radius: 40px; }
         .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
         .stat-card { background: #f0f6fe; border-radius: 20px; padding: 8px 20px; display: inline-flex; align-items: baseline; gap: 12px; }
         .stat-card span:first-child { font-weight: 600; color: #1a5d8c; }
@@ -38,11 +37,7 @@
         .history-item { padding: 10px 8px; border-bottom: 1px solid #e9edf2; display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; }
         .history-item:first-child { background: #fff9e0; border-left: 3px solid #ffc107; }
         .history-date { color: #2c7da0; min-width: 150px; }
-        .file-input { display: none; }
         footer { margin-top: 32px; font-size: 0.7rem; text-align: center; color: #6f8eae; }
-        .loading { text-align: center; padding: 40px; color: #6f8eae; }
-        .btn-reset { background: #f8d7da; color: #721c24; }
-        .btn-reset:hover { background: #f5c6cb; }
     </style>
 </head>
 <body>
@@ -54,7 +49,6 @@
         <span>📊 Статус:</span>
         <span id="statusText" class="status-ok">✅ Данные загружены</span>
         <button id="saveExcelBtn" class="btn-excel">💾 Сохранить в Excel</button>
-        <button id="resetDataBtn" class="btn btn-reset">🔄 Сбросить к исходным</button>
     </div>
     
     <div class="stats" id="statsPanel">
@@ -149,7 +143,6 @@
         
         const tbody = document.getElementById('separatorsRows');
         tbody.innerHTML = '';
-        // Сортируем сепараторы по номеру (числовое значение)
         const sortedSeparators = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
         for (let sep of sortedSeparators) {
             const row = tbody.insertRow();
@@ -327,19 +320,10 @@
         }
     }
     
-    function resetData() {
-        if (confirm('⚠️ Вы уверены, что хотите сбросить все данные к исходным?')) {
-            localStorage.removeItem(STORAGE_KEY);
-            loadInitialData();
-            alert('✅ Данные сброшены к исходным!');
-        }
-    }
-    
     // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
     document.getElementById('saveExcelBtn').onclick = saveToExcel;
     document.getElementById('addDrumBtn').onclick = addNewDrum;
     document.getElementById('removeDrumBtn').onclick = removeDrum;
-    document.getElementById('resetDataBtn').onclick = resetData;
     
     // ===== ЗАПУСК ПРИ ЗАГРУЗКЕ =====
     const hasBackup = loadBackupFromLocal();
