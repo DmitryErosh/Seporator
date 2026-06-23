@@ -4,41 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Барабаны сепараторов</title>
-    <style>
-        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
-        body { background: #e9f0f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { max-width: 1300px; width: 100%; background: white; border-radius: 28px; padding: 20px 24px 32px 24px; }
-        h1 { font-size: 1.8rem; margin: 0 0 6px 0; color: #1e466e; }
-        .sub { color: #2c5a8c; border-left: 4px solid #2c7da0; padding-left: 16px; margin: 12px 0 20px 0; }
-        .status-bar { background: #e8f4f8; border-radius: 20px; padding: 10px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
-        .status-ok { color: #155724; background: #d4edda; padding: 4px 12px; border-radius: 40px; }
-        .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-        .stat-card { background: #f0f6fe; border-radius: 20px; padding: 8px 20px; display: inline-flex; align-items: baseline; gap: 12px; }
-        .stat-card span:first-child { font-weight: 600; color: #1a5d8c; }
-        .stat-card span:last-child { font-size: 1.6rem; font-weight: 700; color: #004070; }
-        .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between; }
-        .btn { padding: 8px 18px; font-weight: bold; border-radius: 40px; cursor: pointer; border: none; font-size: 0.8rem; }
-        .btn-add { background: #d4edda; color: #155724; }
-        .btn-remove { background: #f8d7da; color: #721c24; }
-        .btn-excel { background: #1e6f5c; color: white; }
-        .btn-excel:hover { background: #155a4a; }
-        .replace-btn { background: #d9eafb; color: #0056a7; padding: 5px 12px; border-radius: 40px; cursor: pointer; border: 1px solid #b9cfec; margin: 0 4px; font-size: 0.75rem; }
-        .replace-btn:hover { background: #b9cfec; }
-        .grid-2col { display: flex; gap: 28px; flex-wrap: wrap; }
-        .card { background: #f8fafd; border-radius: 24px; padding: 16px 20px; border: 1px solid #e2edf7; flex: 1; min-width: 380px; }
-        .card h2 { font-size: 1.3rem; margin-top: 0; margin-bottom: 16px; color: #0f3b5c; border-bottom: 2px solid #cbdde9; padding-bottom: 10px; }
-        .table-wrapper { max-height: 500px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #dde6ef; }
-        th { background-color: #eef3fc; position: sticky; top: 0; }
-        .badge-drum { font-family: monospace; background: #eef2fa; padding: 4px 10px; border-radius: 40px; display: inline-block; }
-        .stock-list { max-height: 250px; overflow-y: auto; background: white; border-radius: 20px; padding: 6px 12px; border: 1px solid #dce5ef; }
-        .stock-item { font-family: monospace; padding: 8px; border-bottom: 1px solid #e9edf2; }
-        .history-item { padding: 10px 8px; border-bottom: 1px solid #e9edf2; display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; }
-        .history-item:first-child { background: #fff9e0; border-left: 3px solid #ffc107; }
-        .history-date { color: #2c7da0; min-width: 150px; }
-        footer { margin-top: 32px; font-size: 0.7rem; text-align: center; color: #6f8eae; }
-    </style>
+    <!-- ПОДКЛЮЧАЕМ ВНЕШНИЙ CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
@@ -48,7 +15,7 @@
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
         <span id="statusText" class="status-ok">✅ Данные загружены</span>
-        <button id="saveExcelBtn" class="btn-excel">💾 Сохранить в Excel</button>
+        <button id="saveExcelBtn" class="btn btn-excel">💾 Сохранить в Excel</button>
     </div>
     
     <div class="stats" id="statsPanel">
