@@ -13,6 +13,7 @@
         .status-bar { background: #e8f4f8; border-radius: 20px; padding: 10px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
         .status-ok { color: #155724; background: #d4edda; padding: 4px 12px; border-radius: 40px; }
         .status-warning { color: #856404; background: #fff3cd; padding: 4px 12px; border-radius: 40px; }
+        .status-error { color: #721c24; background: #f8d7da; padding: 4px 12px; border-radius: 40px; }
         .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
         .stat-card { background: #f0f6fe; border-radius: 20px; padding: 8px 20px; display: inline-flex; align-items: baseline; gap: 12px; }
         .stat-card span:first-child { font-weight: 600; color: #1a5d8c; }
@@ -25,6 +26,7 @@
         .btn-excel:hover { background: #155a4a; }
         .btn-save { background: #17a2b8; color: white; }
         .btn-save:hover { background: #138496; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
         .replace-btn { background: #d9eafb; color: #0056a7; padding: 5px 12px; border-radius: 40px; cursor: pointer; border: 1px solid #b9cfec; margin: 0 4px; font-size: 0.75rem; }
         .replace-btn:hover { background: #b9cfec; }
         .grid-2col { display: flex; gap: 28px; flex-wrap: wrap; }
@@ -58,7 +60,7 @@
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
         <span id="statusText" class="status-warning">Загрузка...</span>
-        <button id="saveToGitBtn" class="btn btn-save">💾 Сохранить на GitHub</button>
+        <button id="saveToGitBtn" class="btn btn-save" disabled>💾 Сохранить на GitHub</button>
         <button id="saveExcelBtn" class="btn btn-excel">📥 Скачать Excel</button>
     </div>
     
@@ -102,7 +104,7 @@
 <script>
     // ===== КОНФИГУРАЦИЯ =====
     const REPO_OWNER = 'DmitryErosh';
-    const REPO_NAME = 'DmitryEro';
+    const REPO_NAME = 'Seporator';
     const FILE_PATH = 'data.json';
     const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
     
@@ -112,21 +114,30 @@
         history: []
     };
     let currentFileName = "барабаны.xlsx";
-    let fileSha = null; // Для обновления файла на GitHub
+    let fileSha = null;
+    let isDataLoaded = false;
     
     // ===== ЗАГРУЗКА ДАННЫХ ИЗ GITHUB =====
     async function loadFromGitHub() {
+        const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveToGitBtn');
+        
         try {
-            document.getElementById('statusText').textContent = '⏳ Загрузка с GitHub...';
-            document.getElementById('statusText').className = 'status-warning';
+            statusText.textContent = '⏳ Загрузка с GitHub...';
+            statusText.className = 'status-warning';
+            saveBtn.disabled = true;
             
             const response = await fetch(GITHUB_API_URL);
+            
             if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('Файл data.json не найден! Создайте его в репозитории.');
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
             
             const data = await response.json();
-            fileSha = data.sha; // Сохраняем SHA для обновления
+            fileSha = data.sha;
             
             // Декодируем содержимое (base64 → JSON)
             const content = atob(data.content);
@@ -136,36 +147,43 @@
             currentData.allDrums = jsonData.allDrums || [];
             currentData.history = jsonData.history || [];
             
+            isDataLoaded = true;
             renderAll();
-            document.getElementById('statusText').textContent = `✅ Загружено с GitHub: ${currentData.separators.length} сеп`;
-            document.getElementById('statusText').className = 'status-ok';
             
-            // Сохраняем в localStorage как резервную копию
-            saveBackupToLocal();
+            statusText.textContent = `✅ Загружено: ${currentData.separators.length} сеп`;
+            statusText.className = 'status-ok';
+            saveBtn.disabled = false;
             
         } catch (error) {
-            console.error('Ошибка загрузки с GitHub:', error);
+            console.error('Ошибка загрузки:', error);
+            statusText.textContent = `❌ ${error.message}`;
+            statusText.className = 'status-error';
+            saveBtn.disabled = true;
+            
             // Пробуем загрузить из localStorage
             const hasBackup = loadBackupFromLocal();
-            if (!hasBackup) {
-                document.getElementById('statusText').textContent = '❌ Ошибка загрузки. Проверьте data.json';
-                document.getElementById('statusText').className = 'status-warning';
+            if (hasBackup) {
+                statusText.textContent = '⚠️ Загружено из кэша (локально)';
+                statusText.className = 'status-warning';
+                saveBtn.disabled = false;
             }
         }
     }
     
     // ===== СОХРАНЕНИЕ НА GITHUB =====
     async function saveToGitHub() {
+        if (!isDataLoaded && !fileSha) {
+            alert('Сначала загрузите данные с GitHub!');
+            return;
+        }
+        
         if (!currentData.separators.length) {
             alert('Нет данных для сохранения!');
             return;
         }
         
-        // Проверяем, есть ли SHA (файл должен существовать)
-        if (!fileSha) {
-            alert('Сначала загрузите данные с GitHub!');
-            return;
-        }
+        const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveToGitBtn');
         
         const jsonData = {
             separators: currentData.separators,
@@ -174,7 +192,7 @@
             lastUpdated: new Date().toISOString()
         };
         
-        const content = btoa(JSON.stringify(jsonData, null, 2));
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(jsonData, null, 2))));
         
         const payload = {
             message: `Обновление данных: ${new Date().toLocaleString()}`,
@@ -183,8 +201,9 @@
         };
         
         try {
-            document.getElementById('statusText').textContent = '⏳ Сохранение на GitHub...';
-            document.getElementById('statusText').className = 'status-warning';
+            statusText.textContent = '⏳ Сохранение на GitHub...';
+            statusText.className = 'status-warning';
+            saveBtn.disabled = true;
             
             const response = await fetch(GITHUB_API_URL, {
                 method: 'PUT',
@@ -202,15 +221,17 @@
             const result = await response.json();
             fileSha = result.content.sha;
             
-            document.getElementById('statusText').textContent = '✅ Сохранено на GitHub!';
-            document.getElementById('statusText').className = 'status-ok';
+            statusText.textContent = '✅ Сохранено на GitHub!';
+            statusText.className = 'status-ok';
+            saveBtn.disabled = false;
             alert('✅ Данные сохранены на GitHub! Теперь они доступны с любого устройства.');
             
         } catch (error) {
             console.error('Ошибка сохранения:', error);
             alert(`❌ Ошибка сохранения: ${error.message}`);
-            document.getElementById('statusText').textContent = '❌ Ошибка сохранения';
-            document.getElementById('statusText').className = 'status-warning';
+            statusText.textContent = '❌ Ошибка сохранения';
+            statusText.className = 'status-error';
+            saveBtn.disabled = false;
         }
     }
     
@@ -351,8 +372,7 @@
                     currentData.allDrums = backup.allDrums || [];
                     currentData.history = backup.history || [];
                     renderAll();
-                    document.getElementById('statusText').textContent = '⚠️ Загружено из кэша (локально)';
-                    document.getElementById('statusText').className = 'status-warning';
+                    isDataLoaded = true;
                     return true;
                 }
             } catch(e) {}
