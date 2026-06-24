@@ -28,7 +28,6 @@ jobs:
           import json
           import openpyxl
           from openpyxl import Workbook
-          import base64
           import os
 
           # Получаем данные из payload
@@ -37,20 +36,20 @@ jobs:
           # Создаём Excel-файл
           wb = Workbook()
 
-          # Лист "Сепараторы"
+          # Лист 'Сепараторы'
           ws1 = wb.active
           ws1.title = 'Сепараторы'
           ws1.append(['Сепаратор', 'Верх', 'Низ'])
           for s in data['separators']:
               ws1.append([s['num'], s['top'], s['bottom']])
 
-          # Лист "Барабаны"
+          # Лист 'Барабаны'
           ws2 = wb.create_sheet('Барабаны')
           ws2.append(['Барабаны'])
           for d in data['allDrums']:
               ws2.append([d])
 
-          # Лист "История"
+          # Лист 'История'
           ws3 = wb.create_sheet('История')
           ws3.append(['Дата', 'Событие'])
           for h in data['history']:
