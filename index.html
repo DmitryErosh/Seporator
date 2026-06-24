@@ -523,4 +523,15 @@
             e.target.value = '';
         }
     };
-    document.getElementById('addDrumBtn').
+    document.getElementById('addDrumBtn').onclick = addNewDrum;
+    document.getElementById('removeDrumBtn').onclick = removeDrum;
+    document.getElementById('resetDataBtn').onclick = resetAllData;
+    
+    // ===== ЗАПУСК =====
+    const hasBackup = loadBackupFromLocal();
+    if (!hasBackup) {
+        loadInitialData();
+    }
+</script>
+</body>
+</html>
