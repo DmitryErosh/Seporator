@@ -61,8 +61,8 @@
     
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
-        <span id="statusText" class="status-ok">✅ Данные загружены</span>
-        <button id="saveToSupabaseBtn" class="btn btn-save">💾 Сохранить в Supabase</button>
+        <span id="statusText" class="status-warning">Загрузка...</span>
+        <button id="saveToSupabaseBtn" class="btn btn-save" disabled>💾 Сохранить в Supabase</button>
         <button id="saveExcelBtn" class="btn btn-excel">📥 Скачать Excel</button>
         <button id="uploadExcelBtn" class="btn" style="background:#17a2b8; color:white;">📤 Загрузить Excel</button>
         <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
@@ -113,7 +113,6 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script>
     // ===== ПОДКЛЮЧЕНИЕ К SUPABASE =====
-    // ⚠️ ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ НАСТРОЕК API:
     const SUPABASE_URL = 'https://hqvsaquslvdwribdnuwn.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxdnNhcXVzbHZkd3JpYmRudXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNjQyNzksImV4cCI6MjA5Nzg0MDI3OX0.mkRsCeyLZ-Vf_5QW689GMFg-6N4zYa6YidCOTmWLCI0';
     
@@ -130,10 +129,12 @@
     // ===== ЗАГРУЗКА ДАННЫХ ИЗ SUPABASE =====
     async function loadFromSupabase() {
         const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveToSupabaseBtn');
         
         try {
             statusText.textContent = '⏳ Загрузка из Supabase...';
             statusText.className = 'status-warning';
+            saveBtn.disabled = true;
             
             // Загружаем сепараторы
             const { data: separators, error: sepError } = await supabase
@@ -159,18 +160,30 @@
             
             if (histError) throw histError;
             
-            currentData.separators = separators || [];
-            currentData.allDrums = drums.map(d => d.name) || [];
-            currentData.history = history || [];
+            // Если данные есть — загружаем их
+            if (separators && separators.length > 0) {
+                currentData.separators = separators;
+                currentData.allDrums = drums.map(d => d.name) || [];
+                currentData.history = history || [];
+            } else {
+                // Если данных нет — загружаем начальные
+                loadInitialData();
+                statusText.textContent = '⚠️ В Supabase нет данных, загружены локальные';
+                statusText.className = 'status-warning';
+                saveBtn.disabled = false;
+                return;
+            }
             
             renderAll();
             statusText.textContent = `✅ Загружено из Supabase: ${currentData.separators.length} сеп`;
             statusText.className = 'status-ok';
+            saveBtn.disabled = false;
             
         } catch (error) {
             console.error('Ошибка загрузки:', error);
-            statusText.textContent = `❌ ${error.message}`;
+            statusText.textContent = `❌ Ошибка: ${error.message}`;
             statusText.className = 'status-error';
+            saveBtn.disabled = false;
             
             // Пробуем загрузить из localStorage
             const hasBackup = loadBackupFromLocal();
@@ -195,7 +208,7 @@
             statusText.className = 'status-warning';
             saveBtn.disabled = true;
             
-            // 1. Обновляем сепараторы (удаляем все и вставляем заново)
+            // 1. Обновляем сепараторы
             const { error: deleteSepError } = await supabase
                 .from('separators')
                 .delete()
@@ -258,7 +271,7 @@
         }
     }
     
-    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ (работа с данными) =====
+    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ =====
     function getCurrentDateTime() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
@@ -410,7 +423,6 @@
     }
     
     function loadInitialData() {
-        // Начальные данные (если нет в Supabase)
         const initialData = {
             separators: [
                 { num: '3', top: '1-1', bottom: '2-7' },
@@ -443,7 +455,6 @@
         document.getElementById('statusText').className = 'status-ok';
     }
     
-    // ===== РАБОТА С EXCEL (для обратной совместимости) =====
     function saveToExcel() {
         if (!currentData.separators.length) {
             alert('Нет данных для сохранения!');
