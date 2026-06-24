@@ -24,8 +24,6 @@
         .btn-add:hover { background: #c3e6cb; }
         .btn-remove { background: #f8d7da; color: #721c24; }
         .btn-remove:hover { background: #f5c6cb; }
-        .btn-excel { background: #1e6f5c; color: white; }
-        .btn-excel:hover { background: #155a4a; }
         .btn-save { background: #17a2b8; color: white; }
         .btn-save:hover { background: #138496; }
         .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -59,19 +57,19 @@
 <body>
 <div class="container">
     <h1>🥁 Барабаны сепараторов</h1>
-    <div class="sub">Синхронизация через GitHub Actions</div>
+    <div class="sub">Синхронизация через Supabase</div>
     
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
         <span id="statusText" class="status-ok">✅ Данные загружены</span>
-        <button id="saveToGitBtn" class="btn btn-save">💾 Сохранить на GitHub</button>
+        <button id="saveToSupabaseBtn" class="btn btn-save">💾 Сохранить в Supabase</button>
         <button id="saveExcelBtn" class="btn btn-excel">📥 Скачать Excel</button>
         <button id="uploadExcelBtn" class="btn" style="background:#17a2b8; color:white;">📤 Загрузить Excel</button>
         <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
     </div>
     
     <div class="sync-info" id="syncInfo">
-        📌 Данные сохраняются в репозиторий через GitHub Actions. Нажмите "Сохранить на GitHub" для синхронизации.
+        📌 Данные хранятся в облачной базе Supabase. Изменения видны на всех устройствах мгновенно.
     </div>
     
     <div class="stats" id="statsPanel">
@@ -108,38 +106,20 @@
             </div>
         </div>
     </div>
-    <footer>📌 Все изменения сохраняются в файл data.xlsx на GitHub через GitHub Actions.</footer>
+    <footer>📌 Все изменения мгновенно сохраняются в Supabase и доступны с любого устройства.</footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script>
-    const STORAGE_KEY = 'barabany_data_backup';
-    const REPO_OWNER = 'DmitryErosh';
-    const REPO_NAME = 'Seporator';
+    // ===== ПОДКЛЮЧЕНИЕ К SUPABASE =====
+    // ⚠️ ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ НАСТРОЕК API:
+    const SUPABASE_URL = 'https://hqvsaquslvdwribdnuwn.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_yetov3YQariN-hFS8dU9Uw_f9jv8NJZ';
     
-    // ===== НАЧАЛЬНЫЕ ДАННЫЕ (встроенные) =====
-    const INITIAL_DATA = {
-        separators: [
-            { num: '3', top: '1-1', bottom: '2-7' },
-            { num: '4', top: '1-2', bottom: '2-2' },
-            { num: '5', top: '1-3', bottom: '2-3' },
-            { num: '6', top: '1-4', bottom: '2-4' },
-            { num: '7', top: '1-5', bottom: '2-5' },
-            { num: '8', top: '1-6', bottom: '2-6' },
-            { num: '9', top: '1-7', bottom: '2-7' },
-            { num: '10', top: '1-8', bottom: '2-8' }
-        ],
-        allDrums: [
-            '1-9', '1-10', '1-11', '2-7к', '2-6к', '3-1', '3-2'
-        ],
-        history: [
-            { date: '2026-05-16 22:53:56', text: 'Сепаратор 7 (Низ): — → 2-1' },
-            { date: '2026-05-16 22:53:43', text: 'Сепаратор 4 (Низ): 1-11 → 2-7' },
-            { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
-            { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
-        ]
-    };
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
+    // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let currentData = {
         separators: [],
         allDrums: [],
@@ -147,10 +127,138 @@
     };
     let currentFileName = "барабаны.xlsx";
     
-    // ===== ТОКЕН ДЛЯ GITHUB =====
-    const GITHUB_TOKEN = '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';
+    // ===== ЗАГРУЗКА ДАННЫХ ИЗ SUPABASE =====
+    async function loadFromSupabase() {
+        const statusText = document.getElementById('statusText');
+        
+        try {
+            statusText.textContent = '⏳ Загрузка из Supabase...';
+            statusText.className = 'status-warning';
+            
+            // Загружаем сепараторы
+            const { data: separators, error: sepError } = await supabase
+                .from('separators')
+                .select('*')
+                .order('id');
+            
+            if (sepError) throw sepError;
+            
+            // Загружаем барабаны
+            const { data: drums, error: drumsError } = await supabase
+                .from('drums')
+                .select('*')
+                .order('id');
+            
+            if (drumsError) throw drumsError;
+            
+            // Загружаем историю
+            const { data: history, error: histError } = await supabase
+                .from('history')
+                .select('*')
+                .order('id', { ascending: false });
+            
+            if (histError) throw histError;
+            
+            currentData.separators = separators || [];
+            currentData.allDrums = drums.map(d => d.name) || [];
+            currentData.history = history || [];
+            
+            renderAll();
+            statusText.textContent = `✅ Загружено из Supabase: ${currentData.separators.length} сеп`;
+            statusText.className = 'status-ok';
+            
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            statusText.textContent = `❌ ${error.message}`;
+            statusText.className = 'status-error';
+            
+            // Пробуем загрузить из localStorage
+            const hasBackup = loadBackupFromLocal();
+            if (!hasBackup) {
+                loadInitialData();
+            }
+        }
+    }
     
-    // ===== ФУНКЦИИ =====
+    // ===== СОХРАНЕНИЕ В SUPABASE =====
+    async function saveToSupabase() {
+        if (!currentData.separators.length) {
+            alert('Нет данных для сохранения!');
+            return;
+        }
+        
+        const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveToSupabaseBtn');
+        
+        try {
+            statusText.textContent = '⏳ Сохранение в Supabase...';
+            statusText.className = 'status-warning';
+            saveBtn.disabled = true;
+            
+            // 1. Обновляем сепараторы (удаляем все и вставляем заново)
+            const { error: deleteSepError } = await supabase
+                .from('separators')
+                .delete()
+                .neq('id', 0);
+            
+            if (deleteSepError) throw deleteSepError;
+            
+            if (currentData.separators.length > 0) {
+                const { error: insertSepError } = await supabase
+                    .from('separators')
+                    .insert(currentData.separators);
+                
+                if (insertSepError) throw insertSepError;
+            }
+            
+            // 2. Обновляем барабаны
+            const { error: deleteDrumsError } = await supabase
+                .from('drums')
+                .delete()
+                .neq('id', 0);
+            
+            if (deleteDrumsError) throw deleteDrumsError;
+            
+            if (currentData.allDrums.length > 0) {
+                const drumsToInsert = currentData.allDrums.map(name => ({ name }));
+                const { error: insertDrumsError } = await supabase
+                    .from('drums')
+                    .insert(drumsToInsert);
+                
+                if (insertDrumsError) throw insertDrumsError;
+            }
+            
+            // 3. Обновляем историю
+            const { error: deleteHistError } = await supabase
+                .from('history')
+                .delete()
+                .neq('id', 0);
+            
+            if (deleteHistError) throw deleteHistError;
+            
+            if (currentData.history.length > 0) {
+                const { error: insertHistError } = await supabase
+                    .from('history')
+                    .insert(currentData.history);
+                
+                if (insertHistError) throw insertHistError;
+            }
+            
+            statusText.textContent = '✅ Сохранено в Supabase!';
+            statusText.className = 'status-ok';
+            saveBtn.disabled = false;
+            alert('✅ Данные сохранены в Supabase!');
+            
+        } catch (error) {
+            console.error('Ошибка сохранения:', error);
+            alert(`❌ Ошибка сохранения: ${error.message}`);
+            statusText.textContent = '❌ Ошибка сохранения';
+            statusText.className = 'status-error';
+            saveBtn.disabled = false;
+        }
+    }
+    
+    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ (работа с данными) =====
     function getCurrentDateTime() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
@@ -237,7 +345,7 @@
                     currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
                     if (currentData.history.length > 30) currentData.history.pop();
                     renderAll();
-                    alert('✅ Замена выполнена! Нажмите "Сохранить на GitHub" для синхронизации');
+                    alert('✅ Замена выполнена! Нажмите "Сохранить в Supabase" для синхронизации');
                 }
             }
             close();
@@ -252,7 +360,7 @@
         currentData.allDrums.push(name.trim());
         currentData.allDrums.sort();
         renderAll();
-        alert('✅ Барабан добавлен! Нажмите "Сохранить на GitHub" для синхронизации');
+        alert('✅ Барабан добавлен! Нажмите "Сохранить в Supabase" для синхронизации');
     }
     
     function removeDrum() {
@@ -263,7 +371,7 @@
             const idx = currentData.allDrums.indexOf(name.trim());
             if (idx !== -1) currentData.allDrums.splice(idx, 1);
             renderAll();
-            alert('✅ Барабан удалён! Нажмите "Сохранить на GitHub" для синхронизации');
+            alert('✅ Барабан удалён! Нажмите "Сохранить в Supabase" для синхронизации');
         } else if (name) alert('Такого барабана нет в списке свободных');
     }
     
@@ -281,13 +389,11 @@
             history: currentData.history,
             lastSaved: getCurrentDateTime()
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
-        document.getElementById('statusText').textContent = '✅ Данные сохранены локально';
-        document.getElementById('statusText').className = 'status-ok';
+        localStorage.setItem('barabany_data_backup', JSON.stringify(backup));
     }
     
     function loadBackupFromLocal() {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem('barabany_data_backup');
         if (saved) {
             try {
                 const backup = JSON.parse(saved);
@@ -296,8 +402,6 @@
                     currentData.allDrums = backup.allDrums || [];
                     currentData.history = backup.history || [];
                     renderAll();
-                    document.getElementById('statusText').textContent = '✅ Загружено из локального хранилища';
-                    document.getElementById('statusText').className = 'status-ok';
                     return true;
                 }
             } catch(e) {}
@@ -306,72 +410,40 @@
     }
     
     function loadInitialData() {
-        currentData.separators = JSON.parse(JSON.stringify(INITIAL_DATA.separators));
-        currentData.allDrums = JSON.parse(JSON.stringify(INITIAL_DATA.allDrums));
-        currentData.history = JSON.parse(JSON.stringify(INITIAL_DATA.history));
+        // Начальные данные (если нет в Supabase)
+        const initialData = {
+            separators: [
+                { num: '3', top: '1-1', bottom: '2-7' },
+                { num: '4', top: '1-2', bottom: '2-2' },
+                { num: '5', top: '1-3', bottom: '2-3' },
+                { num: '6', top: '1-4', bottom: '2-4' },
+                { num: '7', top: '1-5', bottom: '2-5' },
+                { num: '8', top: '1-6', bottom: '2-8 к' },
+                { num: '9', top: '1-7', bottom: '2-1' },
+                { num: '10', top: '1-8', bottom: '2-6' }
+            ],
+            allDrums: [
+                '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10', '1-11',
+                '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8 к', '2-7к', '2-6к',
+                '3-1', '3-2', '3-3', '3-4'
+            ],
+            history: [
+                { date: '2026-05-16 22:53:56', text: 'Сепаратор 7 (Низ): — → 2-1' },
+                { date: '2026-05-16 22:53:43', text: 'Сепаратор 4 (Низ): 1-11 → 2-7' },
+                { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
+                { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
+            ]
+        };
+        
+        currentData.separators = JSON.parse(JSON.stringify(initialData.separators));
+        currentData.allDrums = JSON.parse(JSON.stringify(initialData.allDrums));
+        currentData.history = JSON.parse(JSON.stringify(initialData.history));
         renderAll();
-        document.getElementById('statusText').textContent = '✅ Загружены начальные данные';
+        document.getElementById('statusText').textContent = '✅ Загружены начальные данные (локально)';
         document.getElementById('statusText').className = 'status-ok';
     }
     
-    // ===== СОХРАНЕНИЕ НА GITHUB =====
-       async function saveToGitHub() {
-        if (!currentData.separators.length) {
-            alert('Нет данных для сохранения!');
-            return;
-        }
-        
-        const statusText = document.getElementById('statusText');
-        const saveBtn = document.getElementById('saveToGitBtn');
-        
-        const payload = {
-            separators: currentData.separators,
-            allDrums: currentData.allDrums,
-            history: currentData.history
-        };
-        
-        try {
-            statusText.textContent = '⏳ Отправка на GitHub...';
-            statusText.className = 'status-warning';
-            saveBtn.disabled = true;
-            
-            const response = await fetch(
-                `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/dispatches`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`
-                    },
-                    body: JSON.stringify({
-                        event_type: 'save-data',
-                        client_payload: {
-                            data: JSON.stringify(payload)
-                        }
-                    })
-                }
-            );
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP ${response.status}`);
-            }
-            
-            statusText.textContent = '✅ Отправлено! Обновите страницу через минуту.';
-            statusText.className = 'status-ok';
-            saveBtn.disabled = false;
-            alert('✅ Данные отправлены на сохранение! Обновите страницу через 1-2 минуты.');
-            
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert(`❌ Ошибка сохранения: ${error.message}`);
-            statusText.textContent = '❌ Ошибка отправки';
-            statusText.className = 'status-error';
-            saveBtn.disabled = false;
-        }
-    }
-    
-    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ =====
+    // ===== РАБОТА С EXCEL (для обратной совместимости) =====
     function saveToExcel() {
         if (!currentData.separators.length) {
             alert('Нет данных для сохранения!');
@@ -469,7 +541,7 @@
     }
     
     // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
-    document.getElementById('saveToGitBtn').onclick = saveToGitHub;
+    document.getElementById('saveToSupabaseBtn').onclick = saveToSupabase;
     document.getElementById('saveExcelBtn').onclick = saveToExcel;
     document.getElementById('uploadExcelBtn').onclick = () => document.getElementById('fileInput').click();
     document.getElementById('fileInput').onchange = (e) => {
@@ -483,10 +555,7 @@
     document.getElementById('resetDataBtn').onclick = resetAllData;
     
     // ===== ЗАПУСК =====
-    const hasBackup = loadBackupFromLocal();
-    if (!hasBackup) {
-        loadInitialData();
-    }
+    loadFromSupabase();
 </script>
 </body>
 </html>
