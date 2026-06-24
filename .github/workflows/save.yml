@@ -1,0 +1,69 @@
+name: Save Data to Excel
+
+on:
+  repository_dispatch:
+    types: [save-data]
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install openpyxl
+
+      - name: Save data to Excel
+        env:
+          DATA: ${{ github.event.client_payload.data }}
+        run: |
+          python -c "
+          import json
+          import openpyxl
+          from openpyxl import Workbook
+          import base64
+          import os
+
+          # Получаем данные из payload
+          data = json.loads(os.environ['DATA'])
+
+          # Создаём Excel-файл
+          wb = Workbook()
+
+          # Лист "Сепараторы"
+          ws1 = wb.active
+          ws1.title = 'Сепараторы'
+          ws1.append(['Сепаратор', 'Верх', 'Низ'])
+          for s in data['separators']:
+              ws1.append([s['num'], s['top'], s['bottom']])
+
+          # Лист "Барабаны"
+          ws2 = wb.create_sheet('Барабаны')
+          ws2.append(['Барабаны'])
+          for d in data['allDrums']:
+              ws2.append([d])
+
+          # Лист "История"
+          ws3 = wb.create_sheet('История')
+          ws3.append(['Дата', 'Событие'])
+          for h in data['history']:
+              ws3.append([h['date'], h['text']])
+
+          # Сохраняем
+          wb.save('data.xlsx')
+          "
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add data.xlsx
+          git commit -m "Обновление данных из сайта [skip ci]" || echo "No changes to commit"
+          git push
