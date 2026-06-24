@@ -112,461 +112,465 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script>
-    // ===== ПОДКЛЮЧЕНИЕ К SUPABASE =====
-    const SUPABASE_URL = 'https://hqvsaquslvdwribdnuwn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxdnNhcXVzbHZkd3JpYmRudXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNjQyNzksImV4cCI6MjA5Nzg0MDI3OX0.mkRsCeyLZ-Vf_5QW689GMFg-6N4zYa6YidCOTmWLCI0';
-    
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
-    let currentData = {
-        separators: [],
-        allDrums: [],
-        history: []
-    };
-    let currentFileName = "барабаны.xlsx";
-    
-    // ===== ЗАГРУЗКА ДАННЫХ ИЗ SUPABASE =====
-    async function loadFromSupabase() {
-        const statusText = document.getElementById('statusText');
-        const saveBtn = document.getElementById('saveToSupabaseBtn');
+    // ===== ВЕСЬ КОД ВНУТРИ ОБЁРТКИ (изолируем переменные) =====
+    (function() {
+        // ===== ПОДКЛЮЧЕНИЕ К SUPABASE =====
+        const SUPABASE_URL = 'https://hqvsaquslvdwribdnuwn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxdnNhcXVzbHZkd3JpYmRudXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNjQyNzksImV4cCI6MjA5Nzg0MDI3OX0.mkRsCeyLZ-Vf_5QW689GMFg-6N4zYa6YidCOTmWLCI0';
         
-        try {
-            statusText.textContent = '⏳ Загрузка из Supabase...';
-            statusText.className = 'status-warning';
-            saveBtn.disabled = true;
+        // СОЗДАЁМ КЛИЕНТ (уникальное имя, чтобы не конфликтовать)
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
+        let currentData = {
+            separators: [],
+            allDrums: [],
+            history: []
+        };
+        let currentFileName = "барабаны.xlsx";
+        
+        // ===== ЗАГРУЗКА ДАННЫХ ИЗ SUPABASE =====
+        async function loadFromSupabase() {
+            const statusText = document.getElementById('statusText');
+            const saveBtn = document.getElementById('saveToSupabaseBtn');
             
-            // Загружаем сепараторы
-            const { data: separators, error: sepError } = await supabase
-                .from('separators')
-                .select('*')
-                .order('id');
-            
-            if (sepError) throw sepError;
-            
-            // Загружаем барабаны
-            const { data: drums, error: drumsError } = await supabase
-                .from('drums')
-                .select('*')
-                .order('id');
-            
-            if (drumsError) throw drumsError;
-            
-            // Загружаем историю
-            const { data: history, error: histError } = await supabase
-                .from('history')
-                .select('*')
-                .order('id', { ascending: false });
-            
-            if (histError) throw histError;
-            
-            // Если данные есть — загружаем их
-            if (separators && separators.length > 0) {
-                currentData.separators = separators;
-                currentData.allDrums = drums.map(d => d.name) || [];
-                currentData.history = history || [];
-            } else {
-                // Если данных нет — загружаем начальные
-                loadInitialData();
-                statusText.textContent = '⚠️ В Supabase нет данных, загружены локальные';
+            try {
+                statusText.textContent = '⏳ Загрузка из Supabase...';
                 statusText.className = 'status-warning';
-                saveBtn.disabled = false;
-                return;
-            }
-            
-            renderAll();
-            statusText.textContent = `✅ Загружено из Supabase: ${currentData.separators.length} сеп`;
-            statusText.className = 'status-ok';
-            saveBtn.disabled = false;
-            
-        } catch (error) {
-            console.error('Ошибка загрузки:', error);
-            statusText.textContent = `❌ Ошибка: ${error.message}`;
-            statusText.className = 'status-error';
-            saveBtn.disabled = false;
-            
-            // Пробуем загрузить из localStorage
-            const hasBackup = loadBackupFromLocal();
-            if (!hasBackup) {
-                loadInitialData();
-            }
-        }
-    }
-    
-    // ===== СОХРАНЕНИЕ В SUPABASE =====
-    async function saveToSupabase() {
-        if (!currentData.separators.length) {
-            alert('Нет данных для сохранения!');
-            return;
-        }
-        
-        const statusText = document.getElementById('statusText');
-        const saveBtn = document.getElementById('saveToSupabaseBtn');
-        
-        try {
-            statusText.textContent = '⏳ Сохранение в Supabase...';
-            statusText.className = 'status-warning';
-            saveBtn.disabled = true;
-            
-            // 1. Обновляем сепараторы
-            const { error: deleteSepError } = await supabase
-                .from('separators')
-                .delete()
-                .neq('id', 0);
-            
-            if (deleteSepError) throw deleteSepError;
-            
-            if (currentData.separators.length > 0) {
-                const { error: insertSepError } = await supabase
+                saveBtn.disabled = true;
+                
+                // Загружаем сепараторы
+                const { data: separators, error: sepError } = await supabaseClient
                     .from('separators')
-                    .insert(currentData.separators);
+                    .select('*')
+                    .order('id');
                 
-                if (insertSepError) throw insertSepError;
-            }
-            
-            // 2. Обновляем барабаны
-            const { error: deleteDrumsError } = await supabase
-                .from('drums')
-                .delete()
-                .neq('id', 0);
-            
-            if (deleteDrumsError) throw deleteDrumsError;
-            
-            if (currentData.allDrums.length > 0) {
-                const drumsToInsert = currentData.allDrums.map(name => ({ name }));
-                const { error: insertDrumsError } = await supabase
+                if (sepError) throw sepError;
+                
+                // Загружаем барабаны
+                const { data: drums, error: drumsError } = await supabaseClient
                     .from('drums')
-                    .insert(drumsToInsert);
+                    .select('*')
+                    .order('id');
                 
-                if (insertDrumsError) throw insertDrumsError;
-            }
-            
-            // 3. Обновляем историю
-            const { error: deleteHistError } = await supabase
-                .from('history')
-                .delete()
-                .neq('id', 0);
-            
-            if (deleteHistError) throw deleteHistError;
-            
-            if (currentData.history.length > 0) {
-                const { error: insertHistError } = await supabase
+                if (drumsError) throw drumsError;
+                
+                // Загружаем историю
+                const { data: history, error: histError } = await supabaseClient
                     .from('history')
-                    .insert(currentData.history);
+                    .select('*')
+                    .order('id', { ascending: false });
                 
-                if (insertHistError) throw insertHistError;
-            }
-            
-            statusText.textContent = '✅ Сохранено в Supabase!';
-            statusText.className = 'status-ok';
-            saveBtn.disabled = false;
-            alert('✅ Данные сохранены в Supabase!');
-            
-        } catch (error) {
-            console.error('Ошибка сохранения:', error);
-            alert(`❌ Ошибка сохранения: ${error.message}`);
-            statusText.textContent = '❌ Ошибка сохранения';
-            statusText.className = 'status-error';
-            saveBtn.disabled = false;
-        }
-    }
-    
-    // ===== ОСТАЛЬНЫЕ ФУНКЦИИ =====
-    function getCurrentDateTime() {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-    }
-    
-    function getAvailableDrums() {
-        const used = new Set();
-        for (let s of currentData.separators) {
-            if (s.top) used.add(s.top);
-            if (s.bottom) used.add(s.bottom);
-        }
-        return currentData.allDrums.filter(d => !used.has(d));
-    }
-    
-    function renderAll() {
-        const usedCount = currentData.separators.reduce((s, sep) => s + (sep.top ? 1 : 0) + (sep.bottom ? 1 : 0), 0);
-        document.getElementById('statSeparators').textContent = currentData.separators.length;
-        document.getElementById('statDrums').textContent = currentData.allDrums.length;
-        document.getElementById('statUsed').textContent = usedCount;
-        
-        const tbody = document.getElementById('separatorsRows');
-        tbody.innerHTML = '';
-        const sortedSeparators = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
-        for (let sep of sortedSeparators) {
-            const row = tbody.insertRow();
-            row.insertCell(0).textContent = sep.num;
-            row.insertCell(1).innerHTML = sep.top ? `<span class="badge-drum">${sep.top}</span>` : '<span style="color:#aaa;">—</span>';
-            row.insertCell(2).innerHTML = sep.bottom ? `<span class="badge-drum">${sep.bottom}</span>` : '<span style="color:#aaa;">—</span>';
-            const cell = row.insertCell(3);
-            const topBtn = document.createElement('button');
-            topBtn.textContent = 'Заменить верх';
-            topBtn.className = 'replace-btn';
-            topBtn.onclick = () => showDialog(sep.num, 'top', sep.top || '');
-            const bottomBtn = document.createElement('button');
-            bottomBtn.textContent = 'Заменить низ';
-            bottomBtn.className = 'replace-btn';
-            bottomBtn.style.marginLeft = '8px';
-            bottomBtn.onclick = () => showDialog(sep.num, 'bottom', sep.bottom || '');
-            cell.appendChild(topBtn);
-            cell.appendChild(bottomBtn);
-        }
-        
-        const available = getAvailableDrums();
-        const stockDiv = document.getElementById('stockContainer');
-        if (available.length === 0) stockDiv.innerHTML = '<div class="stock-item">✨ Нет свободных барабанов</div>';
-        else stockDiv.innerHTML = available.map(d => `<div class="stock-item">🥁 ${d}</div>`).join('');
-        
-        const historyDiv = document.getElementById('historyList');
-        if (currentData.history.length === 0) historyDiv.innerHTML = '<div class="history-item">История пуста</div>';
-        else historyDiv.innerHTML = currentData.history.map(h => `<div class="history-item"><span class="history-date">📅 ${h.date}</span><span>🔄 ${h.text}</span></div>`).join('');
-        
-        saveBackupToLocal();
-    }
-    
-    function showDialog(separatorNum, position, currentDrum) {
-        const available = getAvailableDrums();
-        if (available.length === 0) { alert('Нет свободных барабанов!'); return; }
-        
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-box">
-                <h3>Замена барабана</h3>
-                <p><strong>Сепаратор ${separatorNum}</strong><br>${position === 'top' ? 'Верхний' : 'Нижний'}: ${currentDrum || 'не установлен'}</p>
-                <select id="newDrumSelect">
-                    ${available.map(d => `<option value="${d}">${d}</option>`).join('')}
-                </select>
-                <div class="btn-row">
-                    <button id="cancelBtn" class="btn-cancel">Отмена</button>
-                    <button id="confirmBtn" class="btn-confirm">Подтвердить</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        const close = () => modal.remove();
-        modal.querySelector('#confirmBtn').onclick = () => {
-            const newDrum = modal.querySelector('#newDrumSelect').value;
-            if (newDrum) {
-                const idx = currentData.separators.findIndex(s => s.num === separatorNum);
-                if (idx !== -1) {
-                    const oldDrum = position === 'top' ? currentData.separators[idx].top : currentData.separators[idx].bottom;
-                    if (position === 'top') currentData.separators[idx].top = newDrum;
-                    else currentData.separators[idx].bottom = newDrum;
-                    currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
-                    if (currentData.history.length > 30) currentData.history.pop();
-                    renderAll();
-                    alert('✅ Замена выполнена! Нажмите "Сохранить в Supabase" для синхронизации');
-                }
-            }
-            close();
-        };
-        modal.querySelector('#cancelBtn').onclick = close;
-    }
-    
-    function addNewDrum() {
-        const name = prompt('Введите название нового барабана (например: 1-12)');
-        if (!name || !name.trim()) return;
-        if (currentData.allDrums.includes(name.trim())) { alert('Такой барабан уже есть!'); return; }
-        currentData.allDrums.push(name.trim());
-        currentData.allDrums.sort();
-        renderAll();
-        alert('✅ Барабан добавлен! Нажмите "Сохранить в Supabase" для синхронизации');
-    }
-    
-    function removeDrum() {
-        const available = getAvailableDrums();
-        if (available.length === 0) { alert('Нет свободных барабанов для удаления!'); return; }
-        const name = prompt('Введите название барабана для удаления:\n' + available.join(', '));
-        if (name && available.includes(name.trim())) {
-            const idx = currentData.allDrums.indexOf(name.trim());
-            if (idx !== -1) currentData.allDrums.splice(idx, 1);
-            renderAll();
-            alert('✅ Барабан удалён! Нажмите "Сохранить в Supabase" для синхронизации');
-        } else if (name) alert('Такого барабана нет в списке свободных');
-    }
-    
-    function resetAllData() {
-        if (confirm('⚠️ ВЫ УВЕРЕНЫ? Все текущие данные будут удалены, загружены начальные настройки!')) {
-            loadInitialData();
-            alert('✅ Данные сброшены к начальным!');
-        }
-    }
-    
-    function saveBackupToLocal() {
-        const backup = {
-            separators: currentData.separators,
-            allDrums: currentData.allDrums,
-            history: currentData.history,
-            lastSaved: getCurrentDateTime()
-        };
-        localStorage.setItem('barabany_data_backup', JSON.stringify(backup));
-    }
-    
-    function loadBackupFromLocal() {
-        const saved = localStorage.getItem('barabany_data_backup');
-        if (saved) {
-            try {
-                const backup = JSON.parse(saved);
-                if (backup.separators && backup.separators.length) {
-                    currentData.separators = backup.separators;
-                    currentData.allDrums = backup.allDrums || [];
-                    currentData.history = backup.history || [];
-                    renderAll();
-                    return true;
-                }
-            } catch(e) {}
-        }
-        return false;
-    }
-    
-    function loadInitialData() {
-        const initialData = {
-            separators: [
-                { num: '3', top: '1-1', bottom: '2-7' },
-                { num: '4', top: '1-2', bottom: '2-2' },
-                { num: '5', top: '1-3', bottom: '2-3' },
-                { num: '6', top: '1-4', bottom: '2-4' },
-                { num: '7', top: '1-5', bottom: '2-5' },
-                { num: '8', top: '1-6', bottom: '2-8 к' },
-                { num: '9', top: '1-7', bottom: '2-1' },
-                { num: '10', top: '1-8', bottom: '2-6' }
-            ],
-            allDrums: [
-                '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10', '1-11',
-                '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8 к', '2-7к', '2-6к',
-                '3-1', '3-2', '3-3', '3-4'
-            ],
-            history: [
-                { date: '2026-05-16 22:53:56', text: 'Сепаратор 7 (Низ): — → 2-1' },
-                { date: '2026-05-16 22:53:43', text: 'Сепаратор 4 (Низ): 1-11 → 2-7' },
-                { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
-                { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
-            ]
-        };
-        
-        currentData.separators = JSON.parse(JSON.stringify(initialData.separators));
-        currentData.allDrums = JSON.parse(JSON.stringify(initialData.allDrums));
-        currentData.history = JSON.parse(JSON.stringify(initialData.history));
-        renderAll();
-        document.getElementById('statusText').textContent = '✅ Загружены начальные данные (локально)';
-        document.getElementById('statusText').className = 'status-ok';
-    }
-    
-    function saveToExcel() {
-        if (!currentData.separators.length) {
-            alert('Нет данных для сохранения!');
-            return;
-        }
-        
-        const separatorsData = [["Сепаратор", "Верх", "Низ"]];
-        const sorted = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
-        for (let s of sorted) {
-            separatorsData.push([s.num, s.top, s.bottom]);
-        }
-        
-        const drumsData = [["Барабаны"]];
-        const sortedDrums = [...currentData.allDrums].sort();
-        for (let d of sortedDrums) {
-            drumsData.push([d]);
-        }
-        
-        const historyData = [["Дата", "Событие"]];
-        for (let h of currentData.history) {
-            historyData.push([h.date, h.text]);
-        }
-        
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(separatorsData), "Сепараторы");
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(drumsData), "Барабаны");
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(historyData), "История");
-        
-        let fileName = prompt("Введите имя файла:", currentFileName);
-        if (fileName) {
-            if (!fileName.toLowerCase().endsWith('.xlsx')) fileName += '.xlsx';
-            XLSX.writeFile(wb, fileName);
-            currentFileName = fileName;
-            alert(`✅ Сохранено как ${fileName}`);
-        }
-    }
-    
-    function loadFromExcel(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                if (histError) throw histError;
                 
-                const sepSheet = workbook.Sheets["Сепараторы"];
-                if (sepSheet) {
-                    const rows = XLSX.utils.sheet_to_json(sepSheet, { header: 1, defval: "" });
-                    currentData.separators = [];
-                    for (let i = 1; i < rows.length; i++) {
-                        if (rows[i][0] && rows[i][0].toString().trim()) {
-                            currentData.separators.push({
-                                num: rows[i][0].toString().trim(),
-                                top: rows[i][1] ? rows[i][1].toString().trim() : '',
-                                bottom: rows[i][2] ? rows[i][2].toString().trim() : ''
-                            });
-                        }
-                    }
-                }
-                
-                const drumsSheet = workbook.Sheets["Барабаны"];
-                if (drumsSheet) {
-                    const rows = XLSX.utils.sheet_to_json(drumsSheet, { header: 1, defval: "" });
-                    currentData.allDrums = [];
-                    for (let i = 1; i < rows.length; i++) {
-                        if (rows[i][0] && rows[i][0].toString().trim()) {
-                            currentData.allDrums.push(rows[i][0].toString().trim());
-                        }
-                    }
-                }
-                
-                const historySheet = workbook.Sheets["История"];
-                if (historySheet) {
-                    const rows = XLSX.utils.sheet_to_json(historySheet, { header: 1, defval: "" });
-                    currentData.history = [];
-                    for (let i = 1; i < rows.length; i++) {
-                        if (rows[i][0] && rows[i][0].toString().trim()) {
-                            currentData.history.push({
-                                date: rows[i][0].toString().trim(),
-                                text: rows[i][1] ? rows[i][1].toString().trim() : ''
-                            });
-                        }
-                    }
+                // Если данные есть — загружаем их
+                if (separators && separators.length > 0) {
+                    currentData.separators = separators;
+                    currentData.allDrums = drums.map(d => d.name) || [];
+                    currentData.history = history || [];
+                } else {
+                    // Если данных нет — загружаем начальные
+                    loadInitialData();
+                    statusText.textContent = '⚠️ В Supabase нет данных, загружены локальные';
+                    statusText.className = 'status-warning';
+                    saveBtn.disabled = false;
+                    return;
                 }
                 
                 renderAll();
-                document.getElementById('statusText').textContent = `✅ Загружено из Excel: ${currentData.separators.length} сеп`;
-                document.getElementById('statusText').className = 'status-ok';
-                alert('✅ Данные загружены из Excel!');
-            } catch(error) {
-                console.error('Ошибка загрузки Excel:', error);
-                alert('❌ Ошибка загрузки файла. Проверьте формат.');
+                statusText.textContent = `✅ Загружено из Supabase: ${currentData.separators.length} сеп`;
+                statusText.className = 'status-ok';
+                saveBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                statusText.textContent = `❌ Ошибка: ${error.message}`;
+                statusText.className = 'status-error';
+                saveBtn.disabled = false;
+                
+                // Пробуем загрузить из localStorage
+                const hasBackup = loadBackupFromLocal();
+                if (!hasBackup) {
+                    loadInitialData();
+                }
+            }
+        }
+        
+        // ===== СОХРАНЕНИЕ В SUPABASE =====
+        async function saveToSupabase() {
+            if (!currentData.separators.length) {
+                alert('Нет данных для сохранения!');
+                return;
+            }
+            
+            const statusText = document.getElementById('statusText');
+            const saveBtn = document.getElementById('saveToSupabaseBtn');
+            
+            try {
+                statusText.textContent = '⏳ Сохранение в Supabase...';
+                statusText.className = 'status-warning';
+                saveBtn.disabled = true;
+                
+                // 1. Обновляем сепараторы
+                const { error: deleteSepError } = await supabaseClient
+                    .from('separators')
+                    .delete()
+                    .neq('id', 0);
+                
+                if (deleteSepError) throw deleteSepError;
+                
+                if (currentData.separators.length > 0) {
+                    const { error: insertSepError } = await supabaseClient
+                        .from('separators')
+                        .insert(currentData.separators);
+                    
+                    if (insertSepError) throw insertSepError;
+                }
+                
+                // 2. Обновляем барабаны
+                const { error: deleteDrumsError } = await supabaseClient
+                    .from('drums')
+                    .delete()
+                    .neq('id', 0);
+                
+                if (deleteDrumsError) throw deleteDrumsError;
+                
+                if (currentData.allDrums.length > 0) {
+                    const drumsToInsert = currentData.allDrums.map(name => ({ name }));
+                    const { error: insertDrumsError } = await supabaseClient
+                        .from('drums')
+                        .insert(drumsToInsert);
+                    
+                    if (insertDrumsError) throw insertDrumsError;
+                }
+                
+                // 3. Обновляем историю
+                const { error: deleteHistError } = await supabaseClient
+                    .from('history')
+                    .delete()
+                    .neq('id', 0);
+                
+                if (deleteHistError) throw deleteHistError;
+                
+                if (currentData.history.length > 0) {
+                    const { error: insertHistError } = await supabaseClient
+                        .from('history')
+                        .insert(currentData.history);
+                    
+                    if (insertHistError) throw insertHistError;
+                }
+                
+                statusText.textContent = '✅ Сохранено в Supabase!';
+                statusText.className = 'status-ok';
+                saveBtn.disabled = false;
+                alert('✅ Данные сохранены в Supabase!');
+                
+            } catch (error) {
+                console.error('Ошибка сохранения:', error);
+                alert(`❌ Ошибка сохранения: ${error.message}`);
+                statusText.textContent = '❌ Ошибка сохранения';
+                statusText.className = 'status-error';
+                saveBtn.disabled = false;
+            }
+        }
+        
+        // ===== ОСТАЛЬНЫЕ ФУНКЦИИ =====
+        function getCurrentDateTime() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        }
+        
+        function getAvailableDrums() {
+            const used = new Set();
+            for (let s of currentData.separators) {
+                if (s.top) used.add(s.top);
+                if (s.bottom) used.add(s.bottom);
+            }
+            return currentData.allDrums.filter(d => !used.has(d));
+        }
+        
+        function renderAll() {
+            const usedCount = currentData.separators.reduce((s, sep) => s + (sep.top ? 1 : 0) + (sep.bottom ? 1 : 0), 0);
+            document.getElementById('statSeparators').textContent = currentData.separators.length;
+            document.getElementById('statDrums').textContent = currentData.allDrums.length;
+            document.getElementById('statUsed').textContent = usedCount;
+            
+            const tbody = document.getElementById('separatorsRows');
+            tbody.innerHTML = '';
+            const sortedSeparators = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
+            for (let sep of sortedSeparators) {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = sep.num;
+                row.insertCell(1).innerHTML = sep.top ? `<span class="badge-drum">${sep.top}</span>` : '<span style="color:#aaa;">—</span>';
+                row.insertCell(2).innerHTML = sep.bottom ? `<span class="badge-drum">${sep.bottom}</span>` : '<span style="color:#aaa;">—</span>';
+                const cell = row.insertCell(3);
+                const topBtn = document.createElement('button');
+                topBtn.textContent = 'Заменить верх';
+                topBtn.className = 'replace-btn';
+                topBtn.onclick = () => showDialog(sep.num, 'top', sep.top || '');
+                const bottomBtn = document.createElement('button');
+                bottomBtn.textContent = 'Заменить низ';
+                bottomBtn.className = 'replace-btn';
+                bottomBtn.style.marginLeft = '8px';
+                bottomBtn.onclick = () => showDialog(sep.num, 'bottom', sep.bottom || '');
+                cell.appendChild(topBtn);
+                cell.appendChild(bottomBtn);
+            }
+            
+            const available = getAvailableDrums();
+            const stockDiv = document.getElementById('stockContainer');
+            if (available.length === 0) stockDiv.innerHTML = '<div class="stock-item">✨ Нет свободных барабанов</div>';
+            else stockDiv.innerHTML = available.map(d => `<div class="stock-item">🥁 ${d}</div>`).join('');
+            
+            const historyDiv = document.getElementById('historyList');
+            if (currentData.history.length === 0) historyDiv.innerHTML = '<div class="history-item">История пуста</div>';
+            else historyDiv.innerHTML = currentData.history.map(h => `<div class="history-item"><span class="history-date">📅 ${h.date}</span><span>🔄 ${h.text}</span></div>`).join('');
+            
+            saveBackupToLocal();
+        }
+        
+        function showDialog(separatorNum, position, currentDrum) {
+            const available = getAvailableDrums();
+            if (available.length === 0) { alert('Нет свободных барабанов!'); return; }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-box">
+                    <h3>Замена барабана</h3>
+                    <p><strong>Сепаратор ${separatorNum}</strong><br>${position === 'top' ? 'Верхний' : 'Нижний'}: ${currentDrum || 'не установлен'}</p>
+                    <select id="newDrumSelect">
+                        ${available.map(d => `<option value="${d}">${d}</option>`).join('')}
+                    </select>
+                    <div class="btn-row">
+                        <button id="cancelBtn" class="btn-cancel">Отмена</button>
+                        <button id="confirmBtn" class="btn-confirm">Подтвердить</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const close = () => modal.remove();
+            modal.querySelector('#confirmBtn').onclick = () => {
+                const newDrum = modal.querySelector('#newDrumSelect').value;
+                if (newDrum) {
+                    const idx = currentData.separators.findIndex(s => s.num === separatorNum);
+                    if (idx !== -1) {
+                        const oldDrum = position === 'top' ? currentData.separators[idx].top : currentData.separators[idx].bottom;
+                        if (position === 'top') currentData.separators[idx].top = newDrum;
+                        else currentData.separators[idx].bottom = newDrum;
+                        currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
+                        if (currentData.history.length > 30) currentData.history.pop();
+                        renderAll();
+                        alert('✅ Замена выполнена! Нажмите "Сохранить в Supabase" для синхронизации');
+                    }
+                }
+                close();
+            };
+            modal.querySelector('#cancelBtn').onclick = close;
+        }
+        
+        function addNewDrum() {
+            const name = prompt('Введите название нового барабана (например: 1-12)');
+            if (!name || !name.trim()) return;
+            if (currentData.allDrums.includes(name.trim())) { alert('Такой барабан уже есть!'); return; }
+            currentData.allDrums.push(name.trim());
+            currentData.allDrums.sort();
+            renderAll();
+            alert('✅ Барабан добавлен! Нажмите "Сохранить в Supabase" для синхронизации');
+        }
+        
+        function removeDrum() {
+            const available = getAvailableDrums();
+            if (available.length === 0) { alert('Нет свободных барабанов для удаления!'); return; }
+            const name = prompt('Введите название барабана для удаления:\n' + available.join(', '));
+            if (name && available.includes(name.trim())) {
+                const idx = currentData.allDrums.indexOf(name.trim());
+                if (idx !== -1) currentData.allDrums.splice(idx, 1);
+                renderAll();
+                alert('✅ Барабан удалён! Нажмите "Сохранить в Supabase" для синхронизации');
+            } else if (name) alert('Такого барабана нет в списке свободных');
+        }
+        
+        function resetAllData() {
+            if (confirm('⚠️ ВЫ УВЕРЕНЫ? Все текущие данные будут удалены, загружены начальные настройки!')) {
+                loadInitialData();
+                alert('✅ Данные сброшены к начальным!');
+            }
+        }
+        
+        function saveBackupToLocal() {
+            const backup = {
+                separators: currentData.separators,
+                allDrums: currentData.allDrums,
+                history: currentData.history,
+                lastSaved: getCurrentDateTime()
+            };
+            localStorage.setItem('barabany_data_backup', JSON.stringify(backup));
+        }
+        
+        function loadBackupFromLocal() {
+            const saved = localStorage.getItem('barabany_data_backup');
+            if (saved) {
+                try {
+                    const backup = JSON.parse(saved);
+                    if (backup.separators && backup.separators.length) {
+                        currentData.separators = backup.separators;
+                        currentData.allDrums = backup.allDrums || [];
+                        currentData.history = backup.history || [];
+                        renderAll();
+                        return true;
+                    }
+                } catch(e) {}
+            }
+            return false;
+        }
+        
+        function loadInitialData() {
+            const initialData = {
+                separators: [
+                    { num: '3', top: '1-1', bottom: '2-7' },
+                    { num: '4', top: '1-2', bottom: '2-2' },
+                    { num: '5', top: '1-3', bottom: '2-3' },
+                    { num: '6', top: '1-4', bottom: '2-4' },
+                    { num: '7', top: '1-5', bottom: '2-5' },
+                    { num: '8', top: '1-6', bottom: '2-8 к' },
+                    { num: '9', top: '1-7', bottom: '2-1' },
+                    { num: '10', top: '1-8', bottom: '2-6' }
+                ],
+                allDrums: [
+                    '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '1-9', '1-10', '1-11',
+                    '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8 к', '2-7к', '2-6к',
+                    '3-1', '3-2', '3-3', '3-4'
+                ],
+                history: [
+                    { date: '2026-05-16 22:53:56', text: 'Сепаратор 7 (Низ): — → 2-1' },
+                    { date: '2026-05-16 22:53:43', text: 'Сепаратор 4 (Низ): 1-11 → 2-7' },
+                    { date: '2026-05-16 20:54:12', text: 'Сепаратор 9 (Низ): — → 2-6' },
+                    { date: '2026-05-16 20:37:03', text: 'Сепаратор 4 (Низ): 2-1 → 1-11' }
+                ]
+            };
+            
+            currentData.separators = JSON.parse(JSON.stringify(initialData.separators));
+            currentData.allDrums = JSON.parse(JSON.stringify(initialData.allDrums));
+            currentData.history = JSON.parse(JSON.stringify(initialData.history));
+            renderAll();
+            document.getElementById('statusText').textContent = '✅ Загружены начальные данные (локально)';
+            document.getElementById('statusText').className = 'status-ok';
+        }
+        
+        function saveToExcel() {
+            if (!currentData.separators.length) {
+                alert('Нет данных для сохранения!');
+                return;
+            }
+            
+            const separatorsData = [["Сепаратор", "Верх", "Низ"]];
+            const sorted = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
+            for (let s of sorted) {
+                separatorsData.push([s.num, s.top, s.bottom]);
+            }
+            
+            const drumsData = [["Барабаны"]];
+            const sortedDrums = [...currentData.allDrums].sort();
+            for (let d of sortedDrums) {
+                drumsData.push([d]);
+            }
+            
+            const historyData = [["Дата", "Событие"]];
+            for (let h of currentData.history) {
+                historyData.push([h.date, h.text]);
+            }
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(separatorsData), "Сепараторы");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(drumsData), "Барабаны");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(historyData), "История");
+            
+            let fileName = prompt("Введите имя файла:", currentFileName);
+            if (fileName) {
+                if (!fileName.toLowerCase().endsWith('.xlsx')) fileName += '.xlsx';
+                XLSX.writeFile(wb, fileName);
+                currentFileName = fileName;
+                alert(`✅ Сохранено как ${fileName}`);
+            }
+        }
+        
+        function loadFromExcel(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const sepSheet = workbook.Sheets["Сепараторы"];
+                    if (sepSheet) {
+                        const rows = XLSX.utils.sheet_to_json(sepSheet, { header: 1, defval: "" });
+                        currentData.separators = [];
+                        for (let i = 1; i < rows.length; i++) {
+                            if (rows[i][0] && rows[i][0].toString().trim()) {
+                                currentData.separators.push({
+                                    num: rows[i][0].toString().trim(),
+                                    top: rows[i][1] ? rows[i][1].toString().trim() : '',
+                                    bottom: rows[i][2] ? rows[i][2].toString().trim() : ''
+                                });
+                            }
+                        }
+                    }
+                    
+                    const drumsSheet = workbook.Sheets["Барабаны"];
+                    if (drumsSheet) {
+                        const rows = XLSX.utils.sheet_to_json(drumsSheet, { header: 1, defval: "" });
+                        currentData.allDrums = [];
+                        for (let i = 1; i < rows.length; i++) {
+                            if (rows[i][0] && rows[i][0].toString().trim()) {
+                                currentData.allDrums.push(rows[i][0].toString().trim());
+                            }
+                        }
+                    }
+                    
+                    const historySheet = workbook.Sheets["История"];
+                    if (historySheet) {
+                        const rows = XLSX.utils.sheet_to_json(historySheet, { header: 1, defval: "" });
+                        currentData.history = [];
+                        for (let i = 1; i < rows.length; i++) {
+                            if (rows[i][0] && rows[i][0].toString().trim()) {
+                                currentData.history.push({
+                                    date: rows[i][0].toString().trim(),
+                                    text: rows[i][1] ? rows[i][1].toString().trim() : ''
+                                });
+                            }
+                        }
+                    }
+                    
+                    renderAll();
+                    document.getElementById('statusText').textContent = `✅ Загружено из Excel: ${currentData.separators.length} сеп`;
+                    document.getElementById('statusText').className = 'status-ok';
+                    alert('✅ Данные загружены из Excel!');
+                } catch(error) {
+                    console.error('Ошибка загрузки Excel:', error);
+                    alert('❌ Ошибка загрузки файла. Проверьте формат.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
+        document.getElementById('saveToSupabaseBtn').onclick = saveToSupabase;
+        document.getElementById('saveExcelBtn').onclick = saveToExcel;
+        document.getElementById('uploadExcelBtn').onclick = () => document.getElementById('fileInput').click();
+        document.getElementById('fileInput').onchange = (e) => {
+            if (e.target.files.length) {
+                loadFromExcel(e.target.files[0]);
+                e.target.value = '';
             }
         };
-        reader.readAsArrayBuffer(file);
-    }
-    
-    // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
-    document.getElementById('saveToSupabaseBtn').onclick = saveToSupabase;
-    document.getElementById('saveExcelBtn').onclick = saveToExcel;
-    document.getElementById('uploadExcelBtn').onclick = () => document.getElementById('fileInput').click();
-    document.getElementById('fileInput').onchange = (e) => {
-        if (e.target.files.length) {
-            loadFromExcel(e.target.files[0]);
-            e.target.value = '';
-        }
-    };
-    document.getElementById('addDrumBtn').onclick = addNewDrum;
-    document.getElementById('removeDrumBtn').onclick = removeDrum;
-    document.getElementById('resetDataBtn').onclick = resetAllData;
-    
-    // ===== ЗАПУСК =====
-    loadFromSupabase();
+        document.getElementById('addDrumBtn').onclick = addNewDrum;
+        document.getElementById('removeDrumBtn').onclick = removeDrum;
+        document.getElementById('resetDataBtn').onclick = resetAllData;
+        
+        // ===== ЗАПУСК =====
+        loadFromSupabase();
+    })(); // Конец обёртки
 </script>
 </body>
 </html>
