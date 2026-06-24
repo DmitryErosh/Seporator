@@ -21,7 +21,9 @@
         .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: space-between; }
         .btn { padding: 8px 18px; font-weight: bold; border-radius: 40px; cursor: pointer; border: none; font-size: 0.8rem; }
         .btn-add { background: #d4edda; color: #155724; }
+        .btn-add:hover { background: #c3e6cb; }
         .btn-remove { background: #f8d7da; color: #721c24; }
+        .btn-remove:hover { background: #f5c6cb; }
         .btn-excel { background: #1e6f5c; color: white; }
         .btn-excel:hover { background: #155a4a; }
         .btn-save { background: #17a2b8; color: white; }
@@ -116,6 +118,8 @@
     const REPO_NAME = 'Seporator';
     const FILE_PATH = 'data.xlsx';
     const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+    // ТОКЕН УЖЕ ВСТАВЛЕН! (используйте его только для этого сайта)
+    const GITHUB_TOKEN = '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';
     
     const STORAGE_KEY = 'barabany_data_backup';
     
@@ -170,7 +174,6 @@
             
             if (!response.ok) {
                 if (response.status === 404) {
-                    // Файл не найден — загружаем начальные данные
                     statusText.textContent = '⚠️ Файл data.xlsx не найден, создаю начальные данные...';
                     statusText.className = 'status-warning';
                     loadInitialData();
@@ -183,7 +186,6 @@
             const data = await response.json();
             fileSha = data.sha;
             
-            // Декодируем base64 в Excel
             const binary = atob(data.content);
             const array = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) {
@@ -205,7 +207,6 @@
             statusText.className = 'status-error';
             saveBtn.disabled = true;
             
-            // Пробуем загрузить из localStorage
             const hasBackup = loadBackupFromLocal();
             if (hasBackup) {
                 statusText.textContent = '⚠️ Загружено из кэша (локально)';
@@ -219,7 +220,6 @@
     }
     
     function loadDataFromWorkbook(workbook) {
-        // Сепараторы
         const sepSheet = workbook.Sheets["Сепараторы"];
         if (sepSheet) {
             const rows = XLSX.utils.sheet_to_json(sepSheet, { header: 1, defval: "" });
@@ -235,7 +235,6 @@
             }
         }
         
-        // Барабаны
         const drumsSheet = workbook.Sheets["Барабаны"];
         if (drumsSheet) {
             const rows = XLSX.utils.sheet_to_json(drumsSheet, { header: 1, defval: "" });
@@ -247,7 +246,6 @@
             }
         }
         
-        // История
         const historySheet = workbook.Sheets["История"];
         if (historySheet) {
             const rows = XLSX.utils.sheet_to_json(historySheet, { header: 1, defval: "" });
@@ -281,7 +279,6 @@
         const statusText = document.getElementById('statusText');
         const saveBtn = document.getElementById('saveToGitBtn');
         
-        // Создаём Excel-файл в памяти
         const separatorsData = [["Сепаратор", "Верх", "Низ"]];
         const sorted = [...currentData.separators].sort((a, b) => parseInt(a.num) - parseInt(b.num));
         for (let s of sorted) {
@@ -322,6 +319,7 @@
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `token ${GITHUB_TOKEN}`
                 },
                 body: JSON.stringify(payload)
             });
