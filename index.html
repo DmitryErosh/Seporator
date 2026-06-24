@@ -29,6 +29,8 @@
         .btn-save { background: #17a2b8; color: white; }
         .btn-save:hover { background: #138496; }
         .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-google { background: #0F9D58; color: white; }
+        .btn-google:hover { background: #0b7a45; }
         .replace-btn { background: #d9eafb; color: #0056a7; padding: 5px 12px; border-radius: 40px; cursor: pointer; border: 1px solid #b9cfec; margin: 0 4px; font-size: 0.75rem; }
         .replace-btn:hover { background: #b9cfec; }
         .grid-2col { display: flex; gap: 28px; flex-wrap: wrap; }
@@ -64,6 +66,7 @@
     <div class="status-bar" id="statusBar">
         <span>📊 Статус:</span>
         <span id="statusText" class="status-warning">Загрузка...</span>
+        <button id="saveToGoogleBtn" class="btn btn-google">💾 Сохранить в Google</button>
         <button id="saveExcelBtn" class="btn btn-excel">📥 Скачать Excel</button>
         <button id="uploadExcelBtn" class="btn" style="background:#17a2b8; color:white;">📤 Загрузить Excel</button>
         <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
@@ -107,7 +110,7 @@
             </div>
         </div>
     </div>
-    <footer>📌 Все изменения мгновенно сохраняются в Google Таблице и доступны с любого устройства.</footer>
+    <footer>📌 Все изменения сохраняются в Google Таблице через Apps Script.</footer>
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
@@ -115,12 +118,12 @@
     // ===== КОНФИГУРАЦИЯ GOOGLE SHEETS =====
     const SPREADSHEET_ID = '1qku5UU6w0tk2tHyceqgyYHlALle82AYIP9knGG4iaCI';
     const API_KEY = 'AIzaSyAwTnfNAu7mK0YrDQhmsiaE3-nhZKiMTWE';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4-3vHktPxFcC65Qzjf37JSUv7Vx0flsa81XyfcSNMvL42N4DE06fUf3bcj3Km6_ZnQw/exec';
     
     const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
-    
     const STORAGE_KEY = 'barabany_data_backup';
     
-    // ===== НАЧАЛЬНЫЕ ДАННЫЕ (если нет интернета) =====
+    // ===== НАЧАЛЬНЫЕ ДАННЫЕ =====
     const INITIAL_DATA = {
         separators: [
             { num: '3', top: '1-1', bottom: '2-7' },
@@ -152,7 +155,7 @@
     };
     let currentFileName = "барабаны.xlsx";
     
-    // ===== ЗАГРУЗКА ДАННЫХ ИЗ GOOGLE ТАБЛИЦ =====
+    // ===== ЗАГРУЗКА ДАННЫХ =====
     async function loadFromSheets() {
         const statusText = document.getElementById('statusText');
         
@@ -160,7 +163,6 @@
             statusText.textContent = '⏳ Загрузка из Google...';
             statusText.className = 'status-warning';
             
-            // Загружаем все три листа
             const [separatorsRes, drumsRes, historyRes] = await Promise.all([
                 fetch(`${SHEETS_API_URL}/Сепараторы?key=${API_KEY}`),
                 fetch(`${SHEETS_API_URL}/Барабаны?key=${API_KEY}`),
@@ -175,17 +177,14 @@
             const drumsData = await drumsRes.json();
             const historyData = await historyRes.json();
             
-            // Парсим сепараторы
             currentData.separators = (separatorsData.values || []).slice(1).map(row => ({
                 num: row[0] || '',
                 top: row[1] || '',
                 bottom: row[2] || ''
             })).filter(s => s.num);
             
-            // Парсим барабаны
             currentData.allDrums = (drumsData.values || []).slice(1).map(row => row[0]).filter(d => d);
             
-            // Парсим историю
             currentData.history = (historyData.values || []).slice(1).map(row => ({
                 date: row[0] || '',
                 text: row[1] || ''
@@ -204,11 +203,53 @@
             statusText.textContent = `❌ ${error.message}`;
             statusText.className = 'status-error';
             
-            // Пробуем загрузить из localStorage
             const hasBackup = loadBackupFromLocal();
             if (!hasBackup) {
                 loadInitialData();
             }
+        }
+    }
+    
+    // ===== СОХРАНЕНИЕ В GOOGLE =====
+    async function saveToGoogle() {
+        if (!currentData.separators.length) {
+            alert('Нет данных для сохранения!');
+            return;
+        }
+        
+        const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveToGoogleBtn');
+        
+        try {
+            statusText.textContent = '⏳ Сохранение в Google...';
+            statusText.className = 'status-warning';
+            saveBtn.disabled = true;
+            
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    separators: currentData.separators,
+                    allDrums: currentData.allDrums,
+                    history: currentData.history
+                })
+            });
+            
+            // При режиме no-cors мы не можем прочитать ответ, поэтому показываем успех
+            statusText.textContent = '✅ Отправлено в Google! Проверьте таблицу.';
+            statusText.className = 'status-ok';
+            saveBtn.disabled = false;
+            alert('✅ Данные отправлены в Google Таблицу! Обновите страницу, чтобы увидеть изменения.');
+            
+        } catch (error) {
+            console.error('Ошибка сохранения:', error);
+            alert(`❌ Ошибка сохранения: ${error.message}`);
+            statusText.textContent = '❌ Ошибка сохранения';
+            statusText.className = 'status-error';
+            saveBtn.disabled = false;
         }
     }
     
@@ -299,7 +340,7 @@
                     currentData.history.unshift({ date: getCurrentDateTime(), text: `Сепаратор ${separatorNum} (${position === 'top' ? 'Верх' : 'Низ'}): ${oldDrum || '—'} → ${newDrum}` });
                     if (currentData.history.length > 30) currentData.history.pop();
                     renderAll();
-                    alert('✅ Замена выполнена!');
+                    alert('✅ Замена выполнена! Нажмите "Сохранить в Google" для синхронизации');
                 }
             }
             close();
@@ -314,7 +355,7 @@
         currentData.allDrums.push(name.trim());
         currentData.allDrums.sort();
         renderAll();
-        alert('✅ Барабан добавлен!');
+        alert('✅ Барабан добавлен! Нажмите "Сохранить в Google" для синхронизации');
     }
     
     function removeDrum() {
@@ -325,7 +366,7 @@
             const idx = currentData.allDrums.indexOf(name.trim());
             if (idx !== -1) currentData.allDrums.splice(idx, 1);
             renderAll();
-            alert('✅ Барабан удалён!');
+            alert('✅ Барабан удалён! Нажмите "Сохранить в Google" для синхронизации');
         } else if (name) alert('Такого барабана нет в списке свободных');
     }
     
@@ -471,6 +512,7 @@
     }
     
     // ===== ПОДКЛЮЧЕНИЕ КНОПОК =====
+    document.getElementById('saveToGoogleBtn').onclick = saveToGoogle;
     document.getElementById('saveExcelBtn').onclick = saveToExcel;
     document.getElementById('uploadExcelBtn').onclick = () => document.getElementById('fileInput').click();
     document.getElementById('fileInput').onchange = (e) => {
